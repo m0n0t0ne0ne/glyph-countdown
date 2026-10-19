@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@id/w_image_light" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" android:src="@drawable/widget_prev_light_4" android:visibility="visible"
+        android:contentDescription="Glyph Countdown timer" />
+    <ImageView android:id="@id/w_image_dark" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" android:src="@drawable/widget_prev_4" android:visibility="gone"
+        android:contentDescription="Glyph Countdown timer" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
+        <FrameLayout android:id="@id/w_open" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="62" android:contentDescription="Open timer" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="18" android:orientation="horizontal">
+            <FrameLayout android:id="@id/w_open2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+            <FrameLayout android:id="@id/w_reset" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:contentDescription="Reset timer" />
+            <FrameLayout android:id="@id/w_toggle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:contentDescription="Start timer" />
+            <FrameLayout android:id="@id/w_open3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+        </LinearLayout>
+        <FrameLayout android:id="@id/w_open4" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="20" />
+    </LinearLayout>
+</FrameLayout>

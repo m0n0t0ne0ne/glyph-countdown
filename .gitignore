@@ -1,0 +1,11 @@
+# build output and downloaded dependencies
+out/
+deps/
+
+# signing keys — never commit these
+*.jks
+*.keystore
+*.p12
+
+# Nothing's SDK may not be redistributed; setup-deps.sh downloads it
+*.aar

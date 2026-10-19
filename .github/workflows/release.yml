@@ -1,0 +1,85 @@
+# Publishes a release when a version tag is pushed (for example v1.0).
+# Builds from exactly that tagged commit, signs with the key held in repository secrets,
+# and attaches the APK with its SHA-256 and signing-certificate fingerprint.
+#
+# Repository secrets (Settings › Secrets and variables › Actions):
+#   KEYSTORE_BASE64  the release keystore (.jks), base64-encoded
+#   KEYSTORE_PASS    its password (keystore and key share one password; key alias "glyph")
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # to create the release
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Check the tag matches the app version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          app=$(grep -o 'android:versionName="[^"]*"' app/AndroidManifest.xml | cut -d'"' -f2)
+          if [ "$version" != "$app" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match versionName $app in app/AndroidManifest.xml"; exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Download pinned build tools
+        run: ./setup-deps.sh
+
+      - name: Restore the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "KEYSTORE_BASE64 secret is not set"; exit 1; fi
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build and sign
+        env:
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+        run: |
+          if [ -z "$KEYSTORE_PASS" ]; then echo "KEYSTORE_PASS secret is not set"; exit 1; fi
+          REQUIRE_KEYSTORE=1 KEYSTORE="$RUNNER_TEMP/release.jks" ./build.sh
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - name: Prepare the release
+        run: |
+          apk="GlyphCountdown-$VERSION.apk"
+          cp out/GlyphCountdown.apk "$apk"
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+          cert=$(java -cp deps/tools/apksig com.android.apksigner.ApkSignerTool verify --print-certs "$apk" \
+                 | grep -m1 'certificate SHA-256 digest' | awk '{print $NF}')
+          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          { if [ -f "$notes" ]; then cat "$notes"; else echo "Glyph Countdown $VERSION"; fi
+            echo
+            echo "SHA-256 (APK): \`$sha\`"
+            echo
+            echo "Signing certificate SHA-256: \`$cert\`"
+          } > release-notes.md
+          echo "APK=$apk" >> "$GITHUB_ENV"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$APK" \
+            --title "Glyph Countdown $VERSION" --notes-file release-notes.md --verify-tag
