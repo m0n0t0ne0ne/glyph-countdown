@@ -629,7 +629,8 @@ public class TimesUpActivity extends Activity {
                 for (int c = 0; c < n; c++) {
                     if (!MorphEngine.onMatrix(n, r, c)) continue;
                     int v = px[r * n + c];
-                    int g = v == 0 ? 0x1C : Math.max(0x30, Math.min(255, v * 255 / 4095));
+                    // show perceived brightness, as the eye sees the LED
+                    int g = v == 0 ? 0x1C : Math.max(0x24, (int) Math.round(255 * SoundSync.fromLed(v)));
                     p.setColor(0xFF000000 | (g << 16) | (g << 8) | g);
                     cv.drawCircle(x0 + (c + 0.5f) * cell, y0 + (r + 0.5f) * cell, rad, p);
                 }

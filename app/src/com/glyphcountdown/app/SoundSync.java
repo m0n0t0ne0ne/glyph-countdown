@@ -103,6 +103,23 @@ final class SoundSync {
     }
 
     /** Brightness with the dim level applied: depth 0 keeps full brightness, 1 dims all the way. */
+    /**
+     * LED value for a perceived brightness 0..1. LEDs look much brighter than their power level
+     * (a quarter of full power looks about half as bright), so brightness is raised to the power
+     * 2.2, the same correction screens use. Without it, deep dim levels still looked bright.
+     */
+    static int toLed(double brightness) {
+        double b = Math.max(0, Math.min(1, brightness));
+        return (int) Math.round(4095 * Math.pow(b, GAMMA));
+    }
+
+    /** Perceived brightness 0..1 of an LED value: the inverse of {@link #toLed}, for on-screen previews. */
+    static double fromLed(int value) {
+        return Math.pow(Math.max(0, Math.min(4095, value)) / 4095.0, 1 / GAMMA);
+    }
+
+    static final double GAMMA = 2.2;
+
     static double dimmed(long[] onsets, long posMs, long lenMs, double depth) {
         return 1 - depth * (1 - level(onsets, posMs, lenMs));
     }
@@ -120,7 +137,7 @@ final class SoundSync {
         double p = s ? phase(prof.onsetsMs, prof.lengthMs, natural, repeats, posMs, true)
                 : (elapsedMs % (long) natural) / natural;
         int[] bits = MorphEngine.frame(anim, n, p);
-        int lit = s && dim ? (int) Math.round(4095 * dimmed(prof.onsetsMs, posMs, prof.lengthMs, depth)) : 4095;
+        int lit = s && dim ? toLed(dimmed(prof.onsetsMs, posMs, prof.lengthMs, depth)) : 4095;
         boolean sparks = s && accent(prof.onsetsMs, posMs) > 0.25;
         int[] px = new int[n * n];
         for (int r = 0; r < n; r++) {
