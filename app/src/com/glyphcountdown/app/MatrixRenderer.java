@@ -42,19 +42,26 @@ public final class MatrixRenderer {
     public static int[] render(TimerState st) { return render(st, SIZE); }
 
     public static int[] render(TimerState st, int size) {
+        return render(st.mode, st.remainingNow(), st.totalMs, st.blink, size);
+    }
+
+    /** The default time's-up frame: full ring and 00:00, shown when {@code on}. */
+    public static int[] doneFrame(int size, boolean on) {
+        return render(TimerState.DONE, 0, 1, on, size);
+    }
+
+    private static int[] render(int mode, long remMs, long totalMs, boolean blink, int size) {
         int[] px = new int[size * size];
-        int mode = st.mode;
-        long remMs = st.remainingNow();
         long secs = (remMs + 999) / 1000;
         boolean small = size == SIZE_SMALL;
 
-        boolean showDigits = mode != TimerState.DONE || st.blink;
+        boolean showDigits = mode != TimerState.DONE || blink;
         int level = mode == TimerState.PAUSE ? DIM : FULL;
 
         // Ring: fraction of time remaining, clockwise from 12 o'clock.
         double frac;
-        if (mode == TimerState.DONE) frac = st.blink ? 1 : 0;
-        else frac = st.totalMs > 0 ? (double) remMs / st.totalMs : 0;
+        if (mode == TimerState.DONE) frac = blink ? 1 : 0;
+        else frac = totalMs > 0 ? (double) remMs / totalMs : 0;
 
         double c = (size - 1) / 2.0;
         double ringIn = small ? 30.25 : 110.25;   // squared inner radius of the ring band

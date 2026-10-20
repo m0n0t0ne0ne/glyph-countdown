@@ -14,6 +14,18 @@ face-down to start, and watch the countdown on the back.
 <p align="center"><img src="docs/design/timer-and-glyph-matrix.png" width="640" alt="Timer screen with the tick-ring dial and draggable dot, next to the phone's back showing the countdown on the Glyph Matrix"></p>
 <p align="center"><em>Timer screen and the matching Glyph Matrix display</em></p>
 
+<p align="center"><img src="docs/design/times-up-animations.gif" width="736" alt="Ten Glyph Matrix animations looping: Contour, Kaleido, Tide, Pulse, Totem, Lattice, Moiré, Weave, Glyph and Knot"></p>
+<p align="center"><em>Time's-up animations, drawn by the app's own animation code</em></p>
+
+<p align="center"><img src="docs/design/times-up-animation-picker.png" width="820" alt="Time's up picker listing Default and ten animations, with a large preview of Totem and a grid of all eleven options"></p>
+<p align="center"><em>Settings › Time's up animation, with live previews</em></p>
+
+<p align="center"><img src="docs/design/sound-sync.png" width="820" alt="Sound sync screen: the Sync with alarm sound switch, the Nothing and Alarms sound lists, a waveform with note markers, and each animation's loop length as whole repeats of the sound"></p>
+<p align="center"><em>Sound sync: each loop lines up with whole repeats of the alarm sound and flashes on every note</em></p>
+
+<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with Only when screen is off, Pocket mode, Flip to start, Time's up animation and Sync with alarm sound, beside four cases showing when the Glyph Matrix lights"></p>
+<p align="center"><em>Only when screen is off: the matrix goes dark while you're using the phone</em></p>
+
 <p align="center"><img src="docs/design/alarm-sound-picker.png" width="640" alt="Timer screen with the alarm sound row, and the alarm sound picker with Nothing and Alarms tabs"></p>
 <p align="center"><em>Alarm sound row and picker (the sound list is read from your phone)</em></p>
 
@@ -46,10 +58,19 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
 
 ### Glyph Matrix
 - While the timer runs, the rear display shows the time left inside a ring that drains
-  clockwise. It dims when paused and flashes when time's up.
+  clockwise. It dims when paused.
   - **Phone (3)**, 25 × 25: H:MM from an hour up (the colon blinks each second), MM:SS below.
   - **Phone (4a) Pro**, 13 × 13: one number — hours ("2h"), minutes, or seconds in the last
     minute.
+- **Time's-up animations**: pick what the matrix shows when the timer ends: the flashing
+  ring (Default) or one of ten looping animations: Contour, Kaleido, Tide, Pulse, Totem
+  (folds up like origami and opens out again), Lattice, Moiré, Weave, Glyph and Knot. Each
+  has a live preview, and all of them work on both matrix sizes.
+- **Sync with alarm sound**: the animation is paced to your alarm sound so each loop starts
+  with it, and it flashes, with sparks round the edge, on every note. Works with all the
+  Nothing and alarm sounds; can be switched off.
+- **Only when screen is off**: the matrix goes dark while the screen is on and lights again
+  when it turns off (on by default; switch it off to keep the matrix lit all the time).
 - **Pocket mode**: the matrix turns off while the phone is in a pocket or bag and comes back
   when you take it out. Face-down on a table still shows it.
 
@@ -82,7 +103,7 @@ Tap the gear on the timer screen:
 | Section | Options |
 |---|---|
 | Appearance | Theme: Phone, Light or Dark |
-| Glyph Matrix | Pocket mode · Flip to start |
+| Glyph Matrix | Only when screen is off · Pocket mode · Flip to start · Time's up animation · Sync with alarm sound |
 | Widgets | Translucent background |
 | Alarm | Alarm sound · Vibrate |
 
@@ -144,7 +165,7 @@ Releases are built and signed by GitHub Actions, never on a personal machine:
   release notes come from `docs/release-notes/<tag>.md`.
 
 To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, add the notes
-file, commit, then `git tag v1.1 && git push origin v1.1`.
+file, commit, then `git tag v1.2 && git push origin v1.2`.
 
 ### Project layout
 
@@ -154,6 +175,9 @@ file, commit, then `git tag v1.1 && git push origin v1.1`.
 | `app/src/…/DialView.java` | The tick-ring dial and draggable dot |
 | `app/src/…/TimerService.java` | Countdown, notification, alarm, Glyph Matrix |
 | `app/src/…/MatrixRenderer.java` | Draws frames for the Glyph Matrix (25 × 25 and 13 × 13) |
+| `app/src/…/MorphEngine.java` | The ten time's-up animations, for both matrix sizes |
+| `app/src/…/SoundSync.java` | Reads the alarm sound's length and notes to pace the animation |
+| `app/src/…/TimesUpActivity.java` | Time's-up animation picker with live previews |
 | `app/src/…/SoundActivity.java`, `Sounds.java` | Alarm sound picker |
 | `app/src/…/SettingsActivity.java`, `Prefs.java` | Settings screen and saved switches |
 | `app/src/…/Palette.java` | Light and dark colours for the app; the theme choice |

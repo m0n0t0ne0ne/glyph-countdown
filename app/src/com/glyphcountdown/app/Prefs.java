@@ -6,7 +6,8 @@ import android.content.SharedPreferences;
 /** On/off settings from the Settings screen. */
 final class Prefs {
     static final String POCKET = "pocket_mode", FLIP = "flip_to_start", TRANSLUCENT = "widget_translucent",
-            VIBRATE = "alarm_vibrate";
+            VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync";
+    private static final String ANIM = "times_up_animation";
 
     private Prefs() {}
 
@@ -15,10 +16,21 @@ final class Prefs {
     }
 
     static boolean get(Context c, String key) {
-        return p(c).getBoolean(key, !TRANSLUCENT.equals(key)); // pocket and flip default on
+        return p(c).getBoolean(key, !TRANSLUCENT.equals(key)); // everything but translucency defaults on
     }
 
     static void set(Context c, String key, boolean on) {
         p(c).edit().putBoolean(key, on).apply();
+    }
+
+    /** The time's-up animation chosen in Settings (one of MorphEngine.NAMES). */
+    static String anim(Context c) {
+        String a = p(c).getString(ANIM, MorphEngine.DEFAULT);
+        for (String n : MorphEngine.NAMES) if (n.equals(a)) return a;
+        return MorphEngine.DEFAULT;
+    }
+
+    static void setAnim(Context c, String name) {
+        p(c).edit().putString(ANIM, name).apply();
     }
 }

@@ -5,9 +5,11 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -18,6 +20,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioAttributes;
+import android.media.MediaPlayer;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -57,9 +60,27 @@ public class TimerService extends Service {
     private GlyphMatrixManager gm;
     private boolean gmReady;
     private int matrixSize = MatrixRenderer.SIZE; // 25 on Phone (3), 13 on Phone (4a) Pro
-    private Ringtone ringtone;
+    private Ringtone ringtone;       // fallback if the sound can't be opened with MediaPlayer
+    private MediaPlayer player;      // alarm sound; its position paces the synced animation
     private Vibrator vibrator;
     private long doneAt;
+
+    // ---- time's-up animation and sound sync
+    private static final long FRAME_MS = 83;  // about 12 frames a second
+    private String anim = MorphEngine.DEFAULT;
+    private volatile SoundSync.Profile profile;
+    private String profileUri;
+    private int lastPos;
+    private long soundRepeats;
+
+    // ---- "only when screen is off": the matrix goes dark while the screen is on
+    private boolean screenOn;
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
+            pushMatrix();
+        }
+    };
 
     // ---- pocket mode: matrix off while the front sensor is covered and the phone isn't flat face-down
     private SensorManager sensors;
@@ -128,6 +149,10 @@ public class TimerService extends Service {
         done.enableVibration(false);
         nm.createNotificationChannel(run);
         nm.createNotificationChannel(done);
+        screenOn = getSystemService(PowerManager.class).isInteractive();
+        IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        f.addAction(Intent.ACTION_SCREEN_OFF);
+        registerReceiver(screenReceiver, f, Context.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
@@ -160,11 +185,13 @@ public class TimerService extends Service {
         st.totalMs = secs * 1000L;
         st.endAtElapsed = SystemClock.elapsedRealtime() + st.totalMs;
         st.mode = TimerState.RUN;
+        anim = Prefs.anim(this);
+        prepareSync(); // analyse the alarm sound now, so the animation is in step from the first frame
         startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         acquireWake();
         initMatrix();
         startPocketSensors();
-        handler.removeCallbacks(tick); handler.removeCallbacks(blink);
+        handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         handler.post(tick);
         st.notifyChanged();
         WidgetUpdater.updateAll(this);
@@ -174,7 +201,7 @@ public class TimerService extends Service {
         if (st.mode != TimerState.RUN) return;
         st.remainingMs = st.remainingNow();
         st.mode = TimerState.PAUSE;
-        handler.removeCallbacks(tick); handler.removeCallbacks(blink);
+        handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         releaseWake();
         pushMatrix();
         postNotification();
@@ -187,7 +214,7 @@ public class TimerService extends Service {
         st.endAtElapsed = SystemClock.elapsedRealtime() + st.remainingMs;
         st.mode = TimerState.RUN;
         acquireWake();
-        handler.removeCallbacks(tick); handler.removeCallbacks(blink);
+        handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         handler.post(tick);
         postNotification();
         st.notifyChanged();
@@ -212,10 +239,13 @@ public class TimerService extends Service {
         st.mode = TimerState.DONE;
         st.blink = true;
         doneAt = SystemClock.elapsedRealtime();
+        anim = Prefs.anim(this);
+        prepareSync();
         startAlarm();
         postNotification();
-        handler.removeCallbacks(tick); handler.removeCallbacks(blink);
+        handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         handler.post(blink);
+        if (!MorphEngine.DEFAULT.equals(anim)) handler.post(animTick);
         st.notifyChanged();
         WidgetUpdater.updateAll(this);
     }
@@ -241,11 +271,19 @@ public class TimerService extends Service {
         @Override public void run() {
             if (st.mode != TimerState.DONE) return;
             st.blink = !st.blink;
-            pushMatrix();
+            if (MorphEngine.DEFAULT.equals(anim)) pushMatrix(); // otherwise animTick draws the matrix
             st.notifyChanged();
             WidgetUpdater.updateAll(TimerService.this); // red pulses on the widgets
-            if (ringtone != null && SystemClock.elapsedRealtime() - doneAt > ALARM_SOUND_MAX_MS) stopAlarm();
+            if ((ringtone != null || player != null) && SystemClock.elapsedRealtime() - doneAt > ALARM_SOUND_MAX_MS) stopAlarm();
             handler.postDelayed(this, 500);
+        }
+    };
+
+    private final Runnable animTick = new Runnable() {
+        @Override public void run() {
+            if (st.mode != TimerState.DONE || MorphEngine.DEFAULT.equals(anim)) return;
+            pushMatrix();
+            handler.postDelayed(this, FRAME_MS);
         }
     };
 
@@ -294,9 +332,73 @@ public class TimerService extends Service {
     private void pushMatrix() {
         if (!gmReady || gm == null) return;
         try {
-            gm.setAppMatrixFrame(pocketed ? new int[matrixSize * matrixSize]
-                    : MatrixRenderer.render(st, matrixSize));
+            gm.setAppMatrixFrame(matrixFrame());
         } catch (Throwable ignored) {}
+    }
+
+    private int[] matrixFrame() {
+        int n = matrixSize;
+        if (pocketed || (screenOn && Prefs.get(this, Prefs.SCREEN_OFF_ONLY))) return new int[n * n];
+        if (st.mode == TimerState.DONE && !MorphEngine.DEFAULT.equals(anim)) return animFrame(n);
+        return MatrixRenderer.render(st, n);
+    }
+
+    /** One frame of the time's-up animation. Synced: paced by the sound, brighter on each note. */
+    private int[] animFrame(int n) {
+        double natural = MorphEngine.naturalSeconds(anim) * 1000;
+        double phase = -1, accent = 0;
+        SoundSync.Profile prof = profile;
+        boolean sync = prof != null && player != null && Prefs.get(this, Prefs.SYNC);
+        if (sync) {
+            int pos = -1;
+            try { pos = player.getCurrentPosition(); } catch (Throwable ignored) {}
+            if (pos >= 0) {
+                if (pos + 300 < lastPos) soundRepeats++; // the sound looped back to the start
+                lastPos = pos;
+                double loop = SoundSync.loopMs(natural, prof.lengthMs);
+                double t = soundRepeats * (double) prof.lengthMs + pos;
+                phase = (t % loop) / loop;
+                accent = SoundSync.accent(prof.onsetsMs, pos);
+            } else {
+                sync = false;
+            }
+        }
+        if (phase < 0) phase = ((SystemClock.elapsedRealtime() - doneAt) % (long) natural) / natural;
+        int[] bits = MorphEngine.frame(anim, n, phase);
+        int lit = sync ? (int) (2600 + (4095 - 2600) * accent) : 4095;
+        int spark = (int) (4095 * accent);
+        int[] px = new int[n * n];
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < n; c++) {
+                int i = r * n + c;
+                if (bits[i] != 0) px[i] = lit;
+                else if (accent > 0.25 && MorphEngine.spark(n, r, c)) px[i] = spark;
+            }
+        }
+        return px;
+    }
+
+    /** Start analysing the chosen alarm sound in the background (once per sound). */
+    private void prepareSync() {
+        if (MorphEngine.DEFAULT.equals(anim) || !Prefs.get(this, Prefs.SYNC)) return;
+        final Uri uri = Sounds.alarmUri(this);
+        if (uri == null) return;
+        final String key = uri.toString();
+        if (key.equals(profileUri) && profile != null) return;
+        profileUri = key;
+        profile = SoundSync.cached(uri);
+        if (profile != null) return;
+        final Context app = getApplicationContext();
+        Thread t = new Thread(new Runnable() {
+            @Override public void run() {
+                final SoundSync.Profile p = SoundSync.analyze(app, uri);
+                handler.post(new Runnable() {
+                    @Override public void run() { if (key.equals(profileUri)) profile = p; }
+                });
+            }
+        }, "sound-sync");
+        t.setDaemon(true);
+        t.start();
     }
 
     private void closeMatrix() {
@@ -311,14 +413,33 @@ public class TimerService extends Service {
     // ---- alarm -----------------------------------------------------------------------
 
     private void startAlarm() {
+        lastPos = 0;
+        soundRepeats = 0;
         try {
-            ringtone = Sounds.ringtone(this, null); // the sound chosen in the picker
-            if (ringtone == null) ringtone = Sounds.ringtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
-            if (ringtone != null) {
-                ringtone.setLooping(true);
-                ringtone.play();
+            MediaPlayer mp = new MediaPlayer();
+            try {
+                mp.setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+                mp.setDataSource(this, Sounds.alarmUri(this)); // the sound chosen in the picker
+                mp.setLooping(true);
+                mp.prepare();
+                mp.start();
+                player = mp;
+            } catch (Throwable t) {
+                mp.release();
             }
         } catch (Throwable ignored) {}
+        if (player == null) {
+            try {
+                ringtone = Sounds.ringtone(this, null);
+                if (ringtone == null) ringtone = Sounds.ringtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
+                if (ringtone != null) {
+                    ringtone.setLooping(true);
+                    ringtone.play();
+                }
+            } catch (Throwable ignored) {}
+        }
         if (!Prefs.get(this, Prefs.VIBRATE)) return;
         try {
             vibrator = getSystemService(VibratorManager.class).getDefaultVibrator();
@@ -330,6 +451,8 @@ public class TimerService extends Service {
     private void stopAlarm() {
         try { if (ringtone != null) ringtone.stop(); } catch (Throwable ignored) {}
         ringtone = null;
+        try { if (player != null) { player.stop(); player.release(); } } catch (Throwable ignored) {}
+        player = null;
         try { if (vibrator != null) vibrator.cancel(); } catch (Throwable ignored) {}
         vibrator = null;
     }
@@ -431,6 +554,7 @@ public class TimerService extends Service {
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        try { unregisterReceiver(screenReceiver); } catch (Throwable ignored) {}
         stopPocketSensors();
         stopAlarm();
         releaseWake();

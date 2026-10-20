@@ -18,14 +18,14 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-/** Theme, pocket mode, flip to start, widget translucency, alarm sound and vibration. */
+/** Theme, Glyph Matrix behaviour, time's-up animation, widget translucency, alarm sound and vibration. */
 public class SettingsActivity extends Activity {
     // set from Palette in onCreate: BLACK is the background role, WHITE the foreground role
     private static int BLACK, WHITE, GREY, LIGHT, CARD, LINE, OFF, BORDER;
     private static final int RED = 0xFFE8202A;
 
     private float dp;
-    private TextView themeSub, soundValue;
+    private TextView themeSub, soundValue, animValue;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -113,10 +113,35 @@ public class SettingsActivity extends Activity {
         col.addView(theme, rowLp());
 
         section(col, "GLYPH MATRIX");
+        col.addView(toggle(Prefs.SCREEN_OFF_ONLY, "Only when screen is off",
+                "The matrix goes dark whenever the screen is on, and lights again when it turns off."), rowLp());
         col.addView(toggle(Prefs.POCKET, "Pocket mode",
                 "Turns the Glyph Matrix off while the phone is in a pocket or bag. Face-down on a table still shows it."), rowLp());
         col.addView(toggle(Prefs.FLIP, "Flip to start",
                 "Place the phone face-down to start the timer (app open)."), rowLp());
+        LinearLayout anim = card();
+        anim.setGravity(Gravity.CENTER_VERTICAL);
+        anim.setClickable(true);
+        anim.setFocusable(true);
+        anim.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                startActivity(new Intent(SettingsActivity.this, TimesUpActivity.class));
+            }
+        });
+        LinearLayout at = new LinearLayout(this);
+        at.setOrientation(LinearLayout.VERTICAL);
+        TextView al = text("TIME'S UP ANIMATION", 10, GREY, Fonts.mono(this));
+        al.setLetterSpacing(0.18f);
+        at.addView(al);
+        animValue = text("", 15, WHITE, Fonts.monoBold(this));
+        LinearLayout.LayoutParams avl = new LinearLayout.LayoutParams(-1, -2);
+        avl.topMargin = px(4);
+        at.addView(animValue, avl);
+        anim.addView(at, new LinearLayout.LayoutParams(0, -2, 1));
+        anim.addView(text("›", 22, GREY, Fonts.mono(this)));
+        col.addView(anim, rowLp());
+        col.addView(toggle(Prefs.SYNC, "Sync with alarm sound",
+                "Paces the animation to the alarm sound and flashes on every note."), rowLp());
 
         section(col, "WIDGETS");
         col.addView(toggle(Prefs.TRANSLUCENT, "Translucent background",
@@ -161,6 +186,8 @@ public class SettingsActivity extends Activity {
                   + ", whatever your phone is set to.");
         String src = Sounds.SRC_NOTHING.equals(Sounds.selectedSource(this)) ? "Nothing" : "Alarm";
         soundValue.setText(Sounds.selectedName(this) + "  · " + src);
+        animValue.setText(Prefs.anim(this));
+        animValue.setContentDescription("Time's up animation: " + Prefs.anim(this));
     }
 
     private void section(LinearLayout col, String label) {
