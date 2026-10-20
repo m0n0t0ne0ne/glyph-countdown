@@ -153,7 +153,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         sl.topMargin = px(32);
         col.addView(seg, sl);
 
-        // alarm sound row
+        // time's up row: a shortcut to the Time's up page
         LinearLayout soundRow = new LinearLayout(this);
         soundRow.setGravity(Gravity.CENTER_VERTICAL);
         soundRow.setPadding(px(18), 0, px(14), 0);
@@ -166,13 +166,13 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         soundRow.setFocusable(true);
         soundRow.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                startActivity(new android.content.Intent(MainActivity.this, SoundActivity.class));
+                startActivity(new android.content.Intent(MainActivity.this, TimesUpActivity.class));
             }
         });
         soundRow.addView(new SpeakerIcon(this), new LinearLayout.LayoutParams(px(22), px(22)));
         LinearLayout soundText = new LinearLayout(this);
         soundText.setOrientation(LinearLayout.VERTICAL);
-        TextView soundLabel = text("ALARM SOUND", 10, GREY, Fonts.mono(this));
+        TextView soundLabel = text("TIME'S UP", 10, GREY, Fonts.mono(this));
         soundLabel.setLetterSpacing(0.18f);
         soundText.addView(soundLabel);
         soundValue = text("", 15, WHITE, Fonts.monoBold(this));
@@ -278,12 +278,9 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         primary.setBackground(pill(done ? RED : WHITE, 0));
         primary.setTextColor(done ? 0xFFFFFFFF : BLACK);
         hint.setVisibility(setting ? View.VISIBLE : View.INVISIBLE);
-        String src = Sounds.selectedSource(this);
-        String srcLabel = Sounds.SRC_NOTHING.equals(src) ? "Nothing" : "Alarm";
-        android.text.SpannableString sv = new android.text.SpannableString(Sounds.selectedName(this) + "  · " + srcLabel);
-        sv.setSpan(new android.text.style.ForegroundColorSpan(GREY), sv.length() - srcLabel.length() - 3, sv.length(), 0);
-        soundValue.setText(sv);
-        soundRowView.setContentDescription("Alarm sound: " + Sounds.selectedName(this) + ". Change");
+        String tu = Prefs.anim(this) + " · " + Sounds.selectedName(this);
+        soundValue.setText(tu);
+        soundRowView.setContentDescription("Time's up: " + tu + ". Change");
         chipDot.setBackground(circle(st.matrixActive && !setting ? RED : DARK));
         dial.invalidate();
         handler.removeCallbacks(frame);

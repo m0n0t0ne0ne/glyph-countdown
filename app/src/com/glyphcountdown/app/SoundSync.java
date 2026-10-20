@@ -63,6 +63,75 @@ final class SoundSync {
         return soundMs / (double) Math.max(1, Math.round(soundMs / naturalMs));
     }
 
+    // ---- stutter: the animation plays through, jerking back on each note ----------------
+
+    private static final double AMP = 0.06, HOLD_MS = 80, SNAP_MS = 70, REWIND_MS = 110;
+
+    /** Loops of the animation per play of the sound: 1/k for a short sound, m for a long one. */
+    static double advancePerPlay(double naturalMs, long soundMs) {
+        if (soundMs <= 0) return 1;
+        if (soundMs <= naturalMs * 1.5) return 1.0 / Math.max(1, Math.round(naturalMs / soundMs));
+        return Math.max(1, Math.round(soundMs / naturalMs));
+    }
+
+    /**
+     * Animation phase 0..1 at {@code posMs} into play number {@code repeats} of the sound. With
+     * {@code stutter}, every note knocks the animation back: even notes snap back in two quick
+     * steps, odd notes rewind smoothly, and each holds briefly before playing on, a little faster
+     * so each loop still lines up with whole plays of the sound.
+     */
+    static double phase(long[] onsets, long lenMs, double naturalMs, long repeats, long posMs, boolean stutter) {
+        double R = advancePerPlay(naturalMs, lenMs), within;
+        int n = onsets.length;
+        if (!stutter || n == 0 || lenMs <= 0) {
+            within = R * posMs / Math.max(1, lenMs);
+        } else {
+            double H = Math.min(HOLD_MS, 0.4 * lenMs / n), A = Math.min(AMP, 0.5 * R / n);
+            double f = (R + n * A) / (lenMs - n * H);
+            within = f * posMs;
+            for (int i = 0; i < n; i++) {
+                double dt = posMs - onsets[i];
+                if (dt < 0) break;
+                double b = i % 2 == 0 ? (dt < SNAP_MS ? 0.5 : 1) : Math.min(1, dt / REWIND_MS);
+                within -= A * b + f * Math.min(dt, H);
+            }
+        }
+        double base = 0;
+        if (R < 1) { long k = Math.round(1 / R); base = (double) (repeats % k) / k; }
+        double p = (base + within) % 1;
+        return p < 0 ? p + 1 : p;
+    }
+
+    /** Brightness with the dim level applied: depth 0 keeps full brightness, 1 dims all the way. */
+    static double dimmed(long[] onsets, long posMs, long lenMs, double depth) {
+        return 1 - depth * (1 - level(onsets, posMs, lenMs));
+    }
+
+    /**
+     * One time's-up frame, LED values 0..4095. {@code prof} null (or sync off) plays the animation
+     * at its own pace from {@code elapsedMs}; otherwise it follows the sound at {@code posMs} of
+     * play {@code repeats}, stuttering on notes and, with {@code dim}, blinking with them.
+     */
+    static int[] frame(String anim, int n, Profile prof, boolean sync, boolean dim, double depth,
+                       long repeats, long posMs, long elapsedMs) {
+        if (MorphEngine.DEFAULT.equals(anim)) return MatrixRenderer.doneFrame(n, (elapsedMs / 500) % 2 == 0);
+        double natural = MorphEngine.naturalSeconds(anim) * 1000;
+        boolean s = sync && prof != null;
+        double p = s ? phase(prof.onsetsMs, prof.lengthMs, natural, repeats, posMs, true)
+                : (elapsedMs % (long) natural) / natural;
+        int[] bits = MorphEngine.frame(anim, n, p);
+        int lit = s && dim ? (int) Math.round(4095 * dimmed(prof.onsetsMs, posMs, prof.lengthMs, depth)) : 4095;
+        boolean sparks = s && accent(prof.onsetsMs, posMs) > 0.25;
+        int[] px = new int[n * n];
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < n; c++) {
+                int i = r * n + c;
+                if (bits[i] != 0 || (sparks && MorphEngine.spark(n, r, c))) px[i] = lit;
+            }
+        }
+        return px;
+    }
+
     /** Flash strength 0..1 at {@code posMs} into one play of the sound: peaks on each note, fades in 350 ms. */
     static double accent(long[] onsets, long posMs) {
         double best = 0;

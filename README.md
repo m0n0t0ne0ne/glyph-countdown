@@ -11,26 +11,23 @@ face-down to start, and watch the countdown on the back.
 
 ## Design
 
-<p align="center"><img src="docs/design/timer-and-glyph-matrix.png" width="640" alt="Timer screen with the tick-ring dial and draggable dot, next to the phone's back showing the countdown on the Glyph Matrix"></p>
+<p align="center"><img src="docs/design/timer-and-glyph-matrix.png" width="640" alt="Timer screen with the tick-ring dial, draggable dot and Time's up shortcut, next to the phone's back showing the countdown on the Glyph Matrix"></p>
 <p align="center"><em>Timer screen and the matching Glyph Matrix display</em></p>
+
+<p align="center"><img src="docs/design/times-up-page.png" width="900" alt="The Time's up page: a pinned preview with play button, animation chips, Nothing and Alarms sound lists, Sync with alarm sound, Dim with notes, Dim level slider and Vibrate, beside the shorter Settings screen"></p>
+<p align="center"><em>The Time's up page: animation, sound, sync, dimming and vibrate in one place, with a live preview</em></p>
 
 <p align="center"><img src="docs/design/times-up-animations.gif" width="736" alt="Ten Glyph Matrix animations looping: Contour, Kaleido, Tide, Pulse, Totem, Lattice, Moiré, Weave, Glyph and Knot"></p>
 <p align="center"><em>Time's-up animations, drawn by the app's own animation code</em></p>
 
-<p align="center"><img src="docs/design/times-up-animation-picker.png" width="820" alt="Time's up picker listing Default and ten animations, with a large preview of Totem and a grid of all eleven options"></p>
-<p align="center"><em>Settings › Time's up animation, with live previews</em></p>
+<p align="center"><img src="docs/design/stutter-sync.gif" width="680" alt="Totem, Knot and Kaleido synced to a three-note sound: on each note the animation snaps back or rewinds, holds for a moment and plays on, while the brightness flashes and steps down"></p>
+<p align="center"><em>Stutter sync with dimming at 80%: the animation jerks back on every note and blinks with the sound (drawn by the app's own code)</em></p>
 
-<p align="center"><img src="docs/design/sound-sync.png" width="820" alt="Sound sync screen: the Sync with alarm sound switch, the Nothing and Alarms sound lists, a waveform with note markers, and each animation's loop length as whole repeats of the sound"></p>
-<p align="center"><em>Sound sync: each loop lines up with whole repeats of the alarm sound</em></p>
+<p align="center"><img src="docs/design/times-up-animations.png" width="700" alt="Live preview of Totem beside a gallery of all eleven time's-up options, with a switch between Phone (3) and Phone (4a) Pro"></p>
+<p align="center"><em>All eleven time's-up options, on the Phone (3) or Phone (4a) Pro matrix</em></p>
 
-<p align="center"><img src="docs/design/sound-sync-blink.gif" width="680" alt="Totem, Knot and Kaleido animations blinking in time with a three-note sound: a full-brightness flash on each note, stepping down through dimmer levels, then a brief dark gap before the next note"></p>
-<p align="center"><em>With sync on, the matrix blinks through brightness levels on every note (drawn by the app's own code)</em></p>
-
-<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with Only when screen is off, Pocket mode, Time's up animation and Sync with alarm sound, beside four cases showing when the Glyph Matrix lights"></p>
+<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with the Time's up row, Only when screen is off and Pocket mode, beside four cases showing when the Glyph Matrix lights"></p>
 <p align="center"><em>Only when screen is off: the matrix goes dark while you're using the phone</em></p>
-
-<p align="center"><img src="docs/design/alarm-sound-picker.png" width="640" alt="Timer screen with the alarm sound row, and the alarm sound picker with Nothing and Alarms tabs"></p>
-<p align="center"><em>Alarm sound row and picker (the sound list is read from your phone)</em></p>
 
 <p align="center"><img src="docs/design/light-and-dark-themes.png" width="820" alt="Settings in light theme with the Theme picker set to Light, beside the timer screen in light and in dark"></p>
 <p align="center"><em>Settings › Theme (Phone, Light or Dark), and the timer screen in light and dark</em></p>
@@ -55,6 +52,7 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   Up to 23 h 59 min 59 s.
 - **Remembers your last time**, ready for next time (and for the widgets).
 - **Flip to start**: with the app open, place the phone face-down to start. Always on.
+- **Time's up shortcut** under the dial shows your animation and sound and opens the Time's up page.
 - **Keeps running with the app closed**: a notification shows a live countdown with
   Pause / Resume / Reset buttons.
 - **TalkBack**: the dial announces the time and can be adjusted by swiping up or down.
@@ -65,24 +63,29 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   - **Phone (3)**, 25 × 25: H:MM from an hour up (the colon blinks each second), MM:SS below.
   - **Phone (4a) Pro**, 13 × 13: one number — hours ("2h"), minutes, or seconds in the last
     minute.
-- **Time's-up animations**: pick what the matrix shows when the timer ends: the flashing
-  ring (Default) or one of ten looping animations: Contour, Kaleido, Tide, Pulse, Totem
-  (folds up like origami and opens out again), Lattice, Moiré, Weave, Glyph and Knot. Each
-  has a live preview, and all of them work on both matrix sizes.
-- **Sync with alarm sound**: the animation is paced to your alarm sound so each loop starts
-  with it, and it blinks with every note: a full-brightness flash with sparks round the edge,
-  then dimmer steps, then a brief dark gap before the next note. Notes flash at different
-  strengths. Works with all the Nothing and alarm sounds; can be switched off.
 - **Only when screen is off**: the matrix goes dark while you're using the phone and lights
   when the screen is off. Face-down counts as off, so flip to start shows the countdown
   even with the app open. On by default; switch it off to keep the matrix lit all the time.
 - **Pocket mode**: the matrix turns off while the phone is in a pocket or bag and comes back
   when you take it out. Face-down on a table still shows it.
 
-### Alarm
-- **Choose the sound**: your phone's Nothing notification sounds or its alarm sounds, with a
-  preview. It plays at alarm volume and repeats for up to 3 minutes or until dismissed.
-- **Vibration** along with the sound, which can be switched off.
+### Time's up
+Everything that happens when the timer ends is set on one page (Settings › Time's up, or the
+shortcut under the dial). A preview pinned at the top plays your choices together, with the real
+sound, exactly as the alarm will. Changes save as you make them.
+
+- **Animation**: the flashing ring (Default) or one of ten looping animations: Contour,
+  Kaleido, Tide, Pulse, Totem (folds up like origami and opens out again), Lattice, Moiré,
+  Weave, Glyph and Knot. All work on both matrix sizes.
+- **Sound**: your phone's Nothing notification sounds or its alarm sounds. Picking one plays
+  it with the animation. The alarm plays at alarm volume for up to 3 minutes or until dismissed.
+- **Sync with alarm sound**: the animation plays through in full, starting with the sound each
+  loop, and stutters on every note: it snaps back or rewinds, holds for a moment, then carries
+  on. Can be switched off for a steady pace.
+- **Dim with notes**: the matrix blinks with the sound, a flash with sparks round the edge on
+  each note, then dimmer steps. Switch it off for stutter only at full brightness.
+- **Dim level**: a slider from subtle to deep sets how dark it dims between notes.
+- **Vibrate** along with the sound, which can be switched off.
 
 ### Widgets
 Three sizes, shaped and coloured like Nothing's own widgets: a circle, a pill and a rounded
@@ -107,10 +110,10 @@ Tap the gear on the timer screen:
 
 | Section | Options |
 |---|---|
+| Time's up | Opens the Time's up page: animation, sound, sync, dimming, dim level, vibrate |
+| Glyph Matrix | Only when screen is off · Pocket mode |
 | Appearance | Theme: Phone, Light or Dark |
-| Glyph Matrix | Only when screen is off · Pocket mode · Time's up animation · Sync with alarm sound |
 | Widgets | Translucent background |
-| Alarm | Alarm sound · Vibrate |
 
 ## Install
 
@@ -170,7 +173,7 @@ Releases are built and signed by GitHub Actions, never on a personal machine:
   release notes come from `docs/release-notes/<tag>.md`.
 
 To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, add the notes
-file, commit, then `git tag v1.3 && git push origin v1.3`.
+file, commit, then `git tag v1.4 && git push origin v1.4`.
 
 ### Project layout
 
@@ -181,9 +184,9 @@ file, commit, then `git tag v1.3 && git push origin v1.3`.
 | `app/src/…/TimerService.java` | Countdown, notification, alarm, Glyph Matrix |
 | `app/src/…/MatrixRenderer.java` | Draws frames for the Glyph Matrix (25 × 25 and 13 × 13) |
 | `app/src/…/MorphEngine.java` | The ten time's-up animations, for both matrix sizes |
-| `app/src/…/SoundSync.java` | Reads the alarm sound's length and notes to pace the animation |
-| `app/src/…/TimesUpActivity.java` | Time's-up animation picker with live previews |
-| `app/src/…/SoundActivity.java`, `Sounds.java` | Alarm sound picker |
+| `app/src/…/SoundSync.java` | Reads the alarm sound's notes; stutter, dimming and the time's-up frame |
+| `app/src/…/TimesUpActivity.java` | The Time's up page: animation, sound, sync, dimming, vibrate, live preview |
+| `app/src/…/Sounds.java` | The phone's alarm and notification sound lists |
 | `app/src/…/SettingsActivity.java`, `Prefs.java` | Settings screen and saved switches |
 | `app/src/…/Palette.java` | Light and dark colours for the app; the theme choice |
 | `app/src/…/Widget*.java` | Home screen widgets (light/dark via `res/layout-night`) |

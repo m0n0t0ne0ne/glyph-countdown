@@ -66,7 +66,7 @@ public class TimerService extends Service {
     private long doneAt;
 
     // ---- time's-up animation and sound sync
-    private static final long FRAME_MS = 83;  // about 12 frames a second
+    private static final long FRAME_MS = 40;  // 25 frames a second, so the stutter reads cleanly
     private String anim = MorphEngine.DEFAULT;
     private volatile SoundSync.Profile profile;
     private String profileUri;
@@ -351,41 +351,21 @@ public class TimerService extends Service {
 
     /** One frame of the time's-up animation. Synced: paced by the sound, brighter on each note. */
     private int[] animFrame(int n) {
-        double natural = MorphEngine.naturalSeconds(anim) * 1000;
-        double phase = -1, accent = 0;
         SoundSync.Profile prof = profile;
         boolean sync = prof != null && player != null && Prefs.get(this, Prefs.SYNC);
+        int pos = -1;
         if (sync) {
-            int pos = -1;
             try { pos = player.getCurrentPosition(); } catch (Throwable ignored) {}
             if (pos >= 0) {
                 if (pos + 300 < lastPos) soundRepeats++; // the sound looped back to the start
                 lastPos = pos;
-                double loop = SoundSync.loopMs(natural, prof.lengthMs);
-                double t = soundRepeats * (double) prof.lengthMs + pos;
-                phase = (t % loop) / loop;
-                accent = SoundSync.accent(prof.onsetsMs, pos);
             } else {
                 sync = false;
             }
         }
-        if (phase < 0) phase = ((SystemClock.elapsedRealtime() - doneAt) % (long) natural) / natural;
-        int[] bits = MorphEngine.frame(anim, n, phase);
-        int lit = 4095, spark = 0;
-        if (sync) {
-            int pos = Math.max(0, lastPos);
-            lit = (int) Math.round(4095 * SoundSync.level(prof.onsetsMs, pos, prof.lengthMs));
-            spark = lit;
-        }
-        int[] px = new int[n * n];
-        for (int r = 0; r < n; r++) {
-            for (int c = 0; c < n; c++) {
-                int i = r * n + c;
-                if (bits[i] != 0) px[i] = lit;
-                else if (accent > 0.25 && MorphEngine.spark(n, r, c)) px[i] = spark;
-            }
-        }
-        return px;
+        return SoundSync.frame(anim, n, sync ? prof : null, sync, Prefs.get(this, Prefs.DIM),
+                Prefs.dimDepth(this) / 100.0, soundRepeats, Math.max(0, pos),
+                SystemClock.elapsedRealtime() - doneAt);
     }
 
     /** Start analysing the chosen alarm sound in the background (once per sound). */

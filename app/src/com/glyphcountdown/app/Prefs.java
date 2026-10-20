@@ -6,7 +6,8 @@ import android.content.SharedPreferences;
 /** On/off settings from the Settings screen. */
 final class Prefs {
     static final String POCKET = "pocket_mode", TRANSLUCENT = "widget_translucent",
-            VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync";
+            VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync",
+            DIM = "anim_dim";
     private static final String ANIM = "times_up_animation";
 
     private Prefs() {}
@@ -32,5 +33,14 @@ final class Prefs {
 
     static void setAnim(Context c, String name) {
         p(c).edit().putString(ANIM, name).apply();
+    }
+
+    /** How far "Dim with notes" dims, 0..100 (default 80). */
+    static int dimDepth(Context c) {
+        return Math.max(0, Math.min(100, p(c).getInt("anim_dim_depth", 80)));
+    }
+
+    static void setDimDepth(Context c, int pct) {
+        p(c).edit().putInt("anim_dim_depth", Math.max(0, Math.min(100, pct))).apply();
     }
 }
