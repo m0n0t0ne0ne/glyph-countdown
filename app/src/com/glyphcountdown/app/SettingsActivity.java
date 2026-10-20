@@ -114,11 +114,9 @@ public class SettingsActivity extends Activity {
 
         section(col, "GLYPH MATRIX");
         col.addView(toggle(Prefs.SCREEN_OFF_ONLY, "Only when screen is off",
-                "The matrix goes dark whenever the screen is on, and lights again when it turns off."), rowLp());
+                "The matrix goes dark while you're using the phone, and lights when the screen is off or the phone is face-down."), rowLp());
         col.addView(toggle(Prefs.POCKET, "Pocket mode",
                 "Turns the Glyph Matrix off while the phone is in a pocket or bag. Face-down on a table still shows it."), rowLp());
-        col.addView(toggle(Prefs.FLIP, "Flip to start",
-                "Place the phone face-down to start the timer (app open)."), rowLp());
         LinearLayout anim = card();
         anim.setGravity(Gravity.CENTER_VERTICAL);
         anim.setClickable(true);

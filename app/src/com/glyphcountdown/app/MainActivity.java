@@ -277,7 +277,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         boolean done = mode == TimerState.DONE;
         primary.setBackground(pill(done ? RED : WHITE, 0));
         primary.setTextColor(done ? 0xFFFFFFFF : BLACK);
-        hint.setVisibility(setting && Prefs.get(this, Prefs.FLIP) ? View.VISIBLE : View.INVISIBLE);
+        hint.setVisibility(setting ? View.VISIBLE : View.INVISIBLE);
         String src = Sounds.selectedSource(this);
         String srcLabel = Sounds.SRC_NOTHING.equals(src) ? "Nothing" : "Alarm";
         android.text.SpannableString sv = new android.text.SpannableString(Sounds.selectedName(this) + "  · " + srcLabel);
@@ -318,7 +318,6 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
     @Override
     public void onSensorChanged(SensorEvent e) {
-        if (!Prefs.get(this, Prefs.FLIP)) { faceDownSince = 0; return; }
         float x = e.values[0], y = e.values[1], z = e.values[2];
         boolean faceDown = z < -8.5f && Math.abs(x) < 2.5f && Math.abs(y) < 2.5f;
         if (!faceDown || st.mode != TimerState.SET || st.setSeconds() <= 0) {

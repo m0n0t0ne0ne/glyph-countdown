@@ -95,8 +95,10 @@ public class TimerService extends Service {
                 near = e.values[0] < Math.min(max, 5f);
             } else {
                 float x = e.values[0], y = e.values[1], z = e.values[2];
-                flatFaceDown = z < -8.5f && Math.abs(x) < 2.5f && Math.abs(y) < 2.5f;
+                boolean fd = z < -8.5f && Math.abs(x) < 2.5f && Math.abs(y) < 2.5f;
+                if (fd != flatFaceDown) { flatFaceDown = fd; pushMatrix(); }
             }
+            if (!Prefs.get(TimerService.this, Prefs.POCKET)) return;
             boolean want = near && !flatFaceDown;
             if (want && !pocketed) {
                 handler.removeCallbacks(enterPocket);
@@ -110,14 +112,15 @@ public class TimerService extends Service {
     };
 
     private void startPocketSensors() {
-        if (sensorsOn || !Prefs.get(this, Prefs.POCKET)) return;
+        if (sensorsOn) return;
         sensors = getSystemService(SensorManager.class);
         Sensor prox = sensors.getDefaultSensor(Sensor.TYPE_PROXIMITY);
         Sensor grav = sensors.getDefaultSensor(Sensor.TYPE_GRAVITY);
         if (grav == null) grav = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        if (prox == null) return;
-        sensors.registerListener(pocketListener, prox, SensorManager.SENSOR_DELAY_NORMAL);
+        // orientation is always tracked (face-down shows the matrix); proximity only for pocket mode
         if (grav != null) sensors.registerListener(pocketListener, grav, SensorManager.SENSOR_DELAY_NORMAL);
+        if (prox != null && Prefs.get(this, Prefs.POCKET))
+            sensors.registerListener(pocketListener, prox, SensorManager.SENSOR_DELAY_NORMAL);
         sensorsOn = true;
     }
 
@@ -126,6 +129,7 @@ public class TimerService extends Service {
         if (sensorsOn && sensors != null) sensors.unregisterListener(pocketListener);
         sensorsOn = false;
         near = false;
+        flatFaceDown = false;
         pocketed = false;
     }
 
@@ -338,7 +342,9 @@ public class TimerService extends Service {
 
     private int[] matrixFrame() {
         int n = matrixSize;
-        if (pocketed || (screenOn && Prefs.get(this, Prefs.SCREEN_OFF_ONLY))) return new int[n * n];
+        // face-down on a table counts as screen off: nobody can see the screen (flip to start)
+        boolean hidden = screenOn && !flatFaceDown && Prefs.get(this, Prefs.SCREEN_OFF_ONLY);
+        if (pocketed || hidden) return new int[n * n];
         if (st.mode == TimerState.DONE && !MorphEngine.DEFAULT.equals(anim)) return animFrame(n);
         return MatrixRenderer.render(st, n);
     }
@@ -365,8 +371,12 @@ public class TimerService extends Service {
         }
         if (phase < 0) phase = ((SystemClock.elapsedRealtime() - doneAt) % (long) natural) / natural;
         int[] bits = MorphEngine.frame(anim, n, phase);
-        int lit = sync ? (int) (2600 + (4095 - 2600) * accent) : 4095;
-        int spark = (int) (4095 * accent);
+        int lit = 4095, spark = 0;
+        if (sync) {
+            int pos = Math.max(0, lastPos);
+            lit = (int) Math.round(4095 * SoundSync.level(prof.onsetsMs, pos, prof.lengthMs));
+            spark = lit;
+        }
         int[] px = new int[n * n];
         for (int r = 0; r < n; r++) {
             for (int c = 0; c < n; c++) {

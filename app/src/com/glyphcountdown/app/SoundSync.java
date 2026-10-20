@@ -74,6 +74,29 @@ final class SoundSync {
         return best;
     }
 
+    private static final double[] PEAKS = {1.0, 0.7, 0.9, 0.55};
+    private static final double FLOOR = 0.2, GAP = 0.04;
+
+    /**
+     * Brightness 0..1 at {@code posMs} into one play of the sound, stepping through dimness
+     * levels so the matrix blinks with the notes: a short dark gap just before each note, a flash
+     * at that note's peak (peaks vary from note to note), then two dimmer steps down to a low glow.
+     */
+    static double level(long[] onsets, long posMs, long lengthMs) {
+        if (onsets.length == 0) return 1;
+        int i = -1;
+        for (int k = 0; k < onsets.length && onsets[k] <= posMs; k++) i = k;
+        long next = i + 1 < onsets.length ? onsets[i + 1] : onsets[0] + lengthMs;
+        long dt = i >= 0 ? posMs - onsets[i] : Long.MAX_VALUE;
+        if (dt >= 80 && next - posMs <= 70) return GAP;
+        if (i < 0) return FLOOR;
+        double peak = PEAKS[i % PEAKS.length];
+        if (dt < 80) return peak;
+        if (dt < 160) return peak * 0.6;
+        if (dt < 260) return peak * 0.35;
+        return FLOOR;
+    }
+
     /** Note starts from a 10 ms loudness envelope: a sharp rise well above the recent level. */
     static long[] onsets(float[] env) {
         float max = 0;

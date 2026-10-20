@@ -21,9 +21,12 @@ face-down to start, and watch the countdown on the back.
 <p align="center"><em>Settings › Time's up animation, with live previews</em></p>
 
 <p align="center"><img src="docs/design/sound-sync.png" width="820" alt="Sound sync screen: the Sync with alarm sound switch, the Nothing and Alarms sound lists, a waveform with note markers, and each animation's loop length as whole repeats of the sound"></p>
-<p align="center"><em>Sound sync: each loop lines up with whole repeats of the alarm sound and flashes on every note</em></p>
+<p align="center"><em>Sound sync: each loop lines up with whole repeats of the alarm sound</em></p>
 
-<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with Only when screen is off, Pocket mode, Flip to start, Time's up animation and Sync with alarm sound, beside four cases showing when the Glyph Matrix lights"></p>
+<p align="center"><img src="docs/design/sound-sync-blink.gif" width="680" alt="Totem, Knot and Kaleido animations blinking in time with a three-note sound: a full-brightness flash on each note, stepping down through dimmer levels, then a brief dark gap before the next note"></p>
+<p align="center"><em>With sync on, the matrix blinks through brightness levels on every note (drawn by the app's own code)</em></p>
+
+<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with Only when screen is off, Pocket mode, Time's up animation and Sync with alarm sound, beside four cases showing when the Glyph Matrix lights"></p>
 <p align="center"><em>Only when screen is off: the matrix goes dark while you're using the phone</em></p>
 
 <p align="center"><img src="docs/design/alarm-sound-picker.png" width="640" alt="Timer screen with the alarm sound row, and the alarm sound picker with Nothing and Alarms tabs"></p>
@@ -51,7 +54,7 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   tapping the digits, then drag the dot round the tick ring, with a light haptic tick at each step.
   Up to 23 h 59 min 59 s.
 - **Remembers your last time**, ready for next time (and for the widgets).
-- **Flip to start**: with the app open, place the phone face-down to start.
+- **Flip to start**: with the app open, place the phone face-down to start. Always on.
 - **Keeps running with the app closed**: a notification shows a live countdown with
   Pause / Resume / Reset buttons.
 - **TalkBack**: the dial announces the time and can be adjusted by swiping up or down.
@@ -67,10 +70,12 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   (folds up like origami and opens out again), Lattice, Moiré, Weave, Glyph and Knot. Each
   has a live preview, and all of them work on both matrix sizes.
 - **Sync with alarm sound**: the animation is paced to your alarm sound so each loop starts
-  with it, and it flashes, with sparks round the edge, on every note. Works with all the
-  Nothing and alarm sounds; can be switched off.
-- **Only when screen is off**: the matrix goes dark while the screen is on and lights again
-  when it turns off (on by default; switch it off to keep the matrix lit all the time).
+  with it, and it blinks with every note: a full-brightness flash with sparks round the edge,
+  then dimmer steps, then a brief dark gap before the next note. Notes flash at different
+  strengths. Works with all the Nothing and alarm sounds; can be switched off.
+- **Only when screen is off**: the matrix goes dark while you're using the phone and lights
+  when the screen is off. Face-down counts as off, so flip to start shows the countdown
+  even with the app open. On by default; switch it off to keep the matrix lit all the time.
 - **Pocket mode**: the matrix turns off while the phone is in a pocket or bag and comes back
   when you take it out. Face-down on a table still shows it.
 
@@ -103,7 +108,7 @@ Tap the gear on the timer screen:
 | Section | Options |
 |---|---|
 | Appearance | Theme: Phone, Light or Dark |
-| Glyph Matrix | Only when screen is off · Pocket mode · Flip to start · Time's up animation · Sync with alarm sound |
+| Glyph Matrix | Only when screen is off · Pocket mode · Time's up animation · Sync with alarm sound |
 | Widgets | Translucent background |
 | Alarm | Alarm sound · Vibrate |
 
@@ -165,7 +170,7 @@ Releases are built and signed by GitHub Actions, never on a personal machine:
   release notes come from `docs/release-notes/<tag>.md`.
 
 To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, add the notes
-file, commit, then `git tag v1.2 && git push origin v1.2`.
+file, commit, then `git tag v1.3 && git push origin v1.3`.
 
 ### Project layout
 
