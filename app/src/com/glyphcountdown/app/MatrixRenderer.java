@@ -45,6 +45,11 @@ public final class MatrixRenderer {
         return render(st.mode, st.remainingNow(), st.totalMs, st.blink, size);
     }
 
+    /** The ring style while running (or paused) with {@code remMs} of {@code totalMs} left. */
+    public static int[] runFrame(int size, long remMs, long totalMs, boolean paused) {
+        return render(paused ? TimerState.PAUSE : TimerState.RUN, remMs, totalMs, true, size);
+    }
+
     /** The default time's-up frame: full ring and 00:00, shown when {@code on}. */
     public static int[] doneFrame(int size, boolean on) {
         return render(TimerState.DONE, 0, 1, on, size);

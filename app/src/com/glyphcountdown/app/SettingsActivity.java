@@ -25,7 +25,7 @@ public class SettingsActivity extends Activity {
     private static final int RED = 0xFFE8202A;
 
     private float dp;
-    private TextView themeSub, timesUpValue;
+    private TextView themeSub, timesUpValue, styleValue;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -135,6 +135,25 @@ public class SettingsActivity extends Activity {
         col.addView(tu, rowLp());
 
         section(col, "GLYPH MATRIX");
+        LinearLayout cs = card();
+        cs.setGravity(Gravity.CENTER_VERTICAL);
+        cs.setClickable(true);
+        cs.setFocusable(true);
+        cs.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                startActivity(new Intent(SettingsActivity.this, CountdownStyleActivity.class));
+            }
+        });
+        LinearLayout ct = new LinearLayout(this);
+        ct.setOrientation(LinearLayout.VERTICAL);
+        ct.addView(text("Countdown style", 15, WHITE, Fonts.monoBold(this)));
+        styleValue = text("", 12, GREY, Fonts.mono(this));
+        LinearLayout.LayoutParams cvl = new LinearLayout.LayoutParams(-1, -2);
+        cvl.topMargin = px(4);
+        ct.addView(styleValue, cvl);
+        cs.addView(ct, new LinearLayout.LayoutParams(0, -2, 1));
+        cs.addView(text("›", 22, GREY, Fonts.mono(this)));
+        col.addView(cs, rowLp());
         col.addView(toggle(Prefs.SCREEN_OFF_ONLY, "Only when screen is off",
                 "The matrix goes dark while you're using the phone, and lights when the screen is off or the phone is face-down."), rowLp());
         col.addView(toggle(Prefs.POCKET, "Pocket mode",
@@ -158,6 +177,8 @@ public class SettingsActivity extends Activity {
                 : "For the app and widgets. Always " + (Palette.DARK.equals(ch) ? "dark" : "light")
                   + ", whatever your phone is set to.");
         timesUpValue.setText(TimesUpActivity.summary(this));
+        styleValue.setText(Prefs.style(this));
+        ((View) styleValue.getParent().getParent()).setContentDescription("Countdown style: " + Prefs.style(this));
     }
 
     private void section(LinearLayout col, String label) {

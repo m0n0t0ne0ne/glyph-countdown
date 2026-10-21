@@ -7,7 +7,7 @@ import android.content.SharedPreferences;
 final class Prefs {
     static final String POCKET = "pocket_mode", TRANSLUCENT = "widget_translucent",
             VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync",
-            DIM = "anim_dim";
+            DIM = "anim_dim", TAP_DISMISS = "double_tap_dismiss";
     private static final String ANIM = "times_up_animation";
 
     private Prefs() {}
@@ -33,6 +33,16 @@ final class Prefs {
 
     static void setAnim(Context c, String name) {
         p(c).edit().putString(ANIM, name).apply();
+    }
+
+    /** What the matrix shows while counting down (one of CountdownStyles.NAMES). */
+    static String style(Context c) {
+        String s = p(c).getString("countdown_style", CountdownStyles.RING);
+        return CountdownStyles.known(s) ? s : CountdownStyles.RING;
+    }
+
+    static void setStyle(Context c, String name) {
+        p(c).edit().putString("countdown_style", name).apply();
     }
 
     /** How far "Dim with notes" dims, 0..100 (default 80). */

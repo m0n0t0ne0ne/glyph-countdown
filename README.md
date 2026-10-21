@@ -14,6 +14,12 @@ face-down to start, and watch the countdown on the back.
 <p align="center"><img src="docs/design/timer-and-glyph-matrix.png" width="640" alt="Timer screen with the tick-ring dial, draggable dot and Time's up shortcut, next to the phone's back showing the countdown on the Glyph Matrix"></p>
 <p align="center"><em>Timer screen and the matching Glyph Matrix display</em></p>
 
+<p align="center"><img src="docs/design/countdown-styles.gif" width="736" alt="Ten countdown styles running together: Pie, Iris, Tide, Spokes, Ticks, Orbit, Big, Spiral, Radar and Rings"></p>
+<p align="center"><em>Countdown styles, drawn by the app's own code: pick one, or keep the original ring</em></p>
+
+<p align="center"><img src="docs/design/countdown-styles.png" width="820" alt="Countdown styles board: a large Pie preview with numbers half re-inverted, beside a grid of all ten styles"></p>
+<p align="center"><em>Settings › Glyph Matrix › Countdown style. In Pie, the numbers are cut out of the pie and light up again as slices go</em></p>
+
 <p align="center"><img src="docs/design/times-up-page.png" width="900" alt="The Time's up page: a pinned preview with play button, animation chips, Nothing and Alarms sound lists, Sync with alarm sound, Dim with notes, Dim level slider and Vibrate, beside the shorter Settings screen"></p>
 <p align="center"><em>The Time's up page: animation, sound, sync, dimming and vibrate in one place, with a live preview</em></p>
 
@@ -60,6 +66,17 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
 ### Glyph Matrix
 - While the timer runs, the rear display shows the time left inside a ring that drains
   clockwise. It dims when paused.
+- **Countdown style**: keep that ring, or pick one of ten other styles, all with a live preview:
+  - **Pie**: a solid pie with the numbers cut out of it; they light up again as slices go.
+  - **Iris**: a disc shrinking to the centre.
+  - **Tide**: a falling water level with a moving wave.
+  - **Spokes**: twelve clock-face spokes going out one by one.
+  - **Ticks**: sixty dots round the edge, with the last one blinking.
+  - **Orbit**: a dot circling once a minute round the time-left arc.
+  - **Big**: double-size minutes with the seconds sweeping the edge.
+  - **Spiral**: a spiral eaten from the outside in, no numbers.
+  - **Radar**: a bright hand over a dotted field of time left.
+  - **Rings**: total, minute and second rings, no numbers.
   - **Phone (3)**, 25 × 25: H:MM from an hour up (the colon blinks each second), MM:SS below.
   - **Phone (4a) Pro**, 13 × 13: one number — hours ("2h"), minutes, or seconds in the last
     minute.
@@ -86,6 +103,8 @@ sound, exactly as the alarm will. Changes save as you make them.
   each note, then dimmer steps. Switch it off for stutter only at full brightness.
 - **Dim level**: a slider from subtle to deep sets how dark it dims between notes.
 - **Vibrate** along with the sound, which can be switched off.
+- **Double-tap back to dismiss**: tap the back of the phone twice to stop the alarm. It uses the
+  motion sensor and ignores the alarm's own vibration. On by default; can be switched off.
 
 ### Widgets
 Three sizes, shaped and coloured like Nothing's own widgets: a circle, a pill and a rounded
@@ -110,8 +129,8 @@ Tap the gear on the timer screen:
 
 | Section | Options |
 |---|---|
-| Time's up | Opens the Time's up page: animation, sound, sync, dimming, dim level, vibrate |
-| Glyph Matrix | Only when screen is off · Pocket mode |
+| Time's up | Opens the Time's up page: animation, sound, sync, dimming, dim level, vibrate, double-tap to dismiss |
+| Glyph Matrix | Countdown style · Only when screen is off · Pocket mode |
 | Appearance | Theme: Phone, Light or Dark |
 | Widgets | Translucent background |
 
@@ -133,7 +152,8 @@ other phones the timer, sounds and widgets still work.
 ### Known limits
 
 - Pressing the Glyph Button on the back opens Nothing's toy carousel, which takes the matrix
-  over from apps. The timer comes back when the carousel closes or you reopen the app.
+  over from apps. The timer comes back when the carousel closes or you reopen the app. Apps
+  can't see Glyph Button presses, so to dismiss the alarm from the back, double-tap the phone.
 - Google Clock's own alarm sounds are private to that app, so only sounds installed on the
   phone itself are listed.
 - Face-down start only works while the app is open on screen.
@@ -173,7 +193,7 @@ Releases are built and signed by GitHub Actions, never on a personal machine:
   release notes come from `docs/release-notes/<tag>.md`.
 
 To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, add the notes
-file, commit, then `git tag v1.4 && git push origin v1.4`.
+file, commit, then `git tag v1.5 && git push origin v1.5`.
 
 ### Project layout
 
@@ -184,6 +204,8 @@ file, commit, then `git tag v1.4 && git push origin v1.4`.
 | `app/src/…/TimerService.java` | Countdown, notification, alarm, Glyph Matrix |
 | `app/src/…/MatrixRenderer.java` | Draws frames for the Glyph Matrix (25 × 25 and 13 × 13) |
 | `app/src/…/MorphEngine.java` | The ten time's-up animations, for both matrix sizes |
+| `app/src/…/CountdownStyles.java`, `CountdownStyleActivity.java` | The ten countdown styles and their picker |
+| `app/src/…/BackTapDetector.java` | Double-tap on the back to dismiss the alarm |
 | `app/src/…/SoundSync.java` | Reads the alarm sound's notes; stutter, dimming and the time's-up frame |
 | `app/src/…/TimesUpActivity.java` | The Time's up page: animation, sound, sync, dimming, vibrate, live preview |
 | `app/src/…/Sounds.java` | The phone's alarm and notification sound lists |

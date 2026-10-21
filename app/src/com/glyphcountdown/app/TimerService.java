@@ -73,6 +73,9 @@ public class TimerService extends Service {
     private int lastPos;
     private long soundRepeats;
 
+    // ---- double-tap the back to dismiss the alarm
+    private BackTapDetector backTap;
+
     // ---- "only when screen is off": the matrix goes dark while the screen is on
     private boolean screenOn;
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
@@ -186,6 +189,7 @@ public class TimerService extends Service {
         int secs = st.setSeconds();
         if (secs <= 0) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return; }
         stopAlarm();
+        if (backTap != null) backTap.stop();
         st.totalMs = secs * 1000L;
         st.endAtElapsed = SystemClock.elapsedRealtime() + st.totalMs;
         st.mode = TimerState.RUN;
@@ -227,6 +231,7 @@ public class TimerService extends Service {
 
     private void reset() {
         handler.removeCallbacksAndMessages(null);
+        if (backTap != null) backTap.stop();
         stopPocketSensors();
         stopAlarm();
         releaseWake();
@@ -246,6 +251,16 @@ public class TimerService extends Service {
         anim = Prefs.anim(this);
         prepareSync();
         startAlarm();
+        if (Prefs.get(this, Prefs.TAP_DISMISS)) {
+            if (backTap == null) backTap = new BackTapDetector(this, new BackTapDetector.Listener() {
+                @Override public void onDoubleTap() {
+                    handler.post(new Runnable() {
+                        @Override public void run() { if (st.mode == TimerState.DONE) reset(); }
+                    });
+                }
+            });
+            backTap.start();
+        }
         postNotification();
         handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         handler.post(blink);
@@ -267,7 +282,8 @@ public class TimerService extends Service {
                 st.notifyChanged();
                 WidgetUpdater.updateAll(TimerService.this);
             }
-            handler.postDelayed(this, 200);
+            // the styles move smoothly (waves, orbits, blinking), so they refresh faster than the ring
+            handler.postDelayed(this, CountdownStyles.RING.equals(Prefs.style(TimerService.this)) ? 200 : 100);
         }
     };
 
@@ -346,6 +362,18 @@ public class TimerService extends Service {
         boolean hidden = screenOn && !flatFaceDown && Prefs.get(this, Prefs.SCREEN_OFF_ONLY);
         if (pocketed || hidden) return new int[n * n];
         if (st.mode == TimerState.DONE && !MorphEngine.DEFAULT.equals(anim)) return animFrame(n);
+        String style = Prefs.style(this);
+        if ((st.mode == TimerState.RUN || st.mode == TimerState.PAUSE) && !CountdownStyles.RING.equals(style)) {
+            CountdownStyles.Moment m = new CountdownStyles.Moment();
+            m.remExact = st.remainingNow() / 1000.0;
+            m.frac = st.totalMs > 0 ? Math.min(1, m.remExact * 1000 / st.totalMs) : 0;
+            m.wallSec = SystemClock.elapsedRealtime() / 1000.0;
+            m.paused = st.mode == TimerState.PAUSE;
+            double[] v = CountdownStyles.draw(style, n, m);
+            int[] px = new int[n * n];
+            for (int i = 0; i < px.length; i++) px[i] = SoundSync.toLed(v[i]);
+            return px;
+        }
         return MatrixRenderer.render(st, n);
     }
 
@@ -545,6 +573,7 @@ public class TimerService extends Service {
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         try { unregisterReceiver(screenReceiver); } catch (Throwable ignored) {}
+        if (backTap != null) backTap.stop();
         stopPocketSensors();
         stopAlarm();
         releaseWake();

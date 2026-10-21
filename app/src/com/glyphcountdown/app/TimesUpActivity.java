@@ -50,7 +50,7 @@ public class TimesUpActivity extends Activity {
     private final TextView[] tabs = new TextView[2];
     private LinearLayout soundList;
     private LinearLayout syncGroup;
-    private ToggleRow syncRow, dimRow, vibrateRow;
+    private ToggleRow syncRow, dimRow, vibrateRow, tapRow;
     private Slider slider;
     private TextView depthValue, syncNote;
     private View sliderCard;
@@ -173,6 +173,8 @@ public class TimesUpActivity extends Activity {
         section(col, "ALARM");
         vibrateRow = new ToggleRow("Vibrate", Prefs.VIBRATE);
         col.addView(vibrateRow.view, lp(-1, -2, 10));
+        tapRow = new ToggleRow("Double-tap back to dismiss", Prefs.TAP_DISMISS);
+        col.addView(tapRow.view, lp(-1, -2, 10));
 
         TextView foot = text("Changes save as you make them. Previews play at alarm volume.", 12, GREY, Fonts.mono(this));
         foot.setGravity(Gravity.CENTER);
@@ -349,6 +351,7 @@ public class TimesUpActivity extends Activity {
         syncNote.setText(isDefault ? "Default flashes on its own, so sync is off while it's picked."
                 : "Sync and dimming apply to all ten animations.");
         vibrateRow.set(Prefs.get(this, Prefs.VIBRATE), "Vibrate along with the alarm sound.");
+        tapRow.set(Prefs.get(this, Prefs.TAP_DISMISS), "Tap the back of the phone twice to stop the alarm.");
         ensureProfile();
     }
 
