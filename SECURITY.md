@@ -23,11 +23,15 @@ Official releases are built and signed by the **Release** GitHub Actions workflo
 tagged commit. The signing key is held only in the repository's encrypted secrets and on its
 owner's offline backup; it never appears in this repository.
 
+The workflow only releases a tag that points at a commit already on `main`, waits for approval
+in the `release` environment, and deletes the key from the build machine even if the build fails.
+
 Every release lists the signing certificate's SHA-256 fingerprint. It is the same for every
 release; an APK signed with a different certificate is not an official build.
 
 ## Supply chain
 
 Build tools are pinned to exact commits in `setup-deps.sh`, and `android.jar` and the Glyph
-Matrix SDK are verified against SHA-256 hashes. GitHub Actions are pinned to commit hashes.
+Matrix SDK are verified against SHA-256 hashes. GitHub Actions are pinned to commit hashes, and Dependabot opens a pull request when one of
+them has a new release, so the pins don't fall behind on security fixes.
 Nothing's Glyph Matrix SDK is closed source and is included in the APK as Nothing intends.
