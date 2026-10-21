@@ -1,4 +1,9 @@
-<p align="center"><img src="docs/icon.png" width="96" alt="Glyph Countdown icon"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/icon-light.png">
+    <img src="docs/icon.png" width="96" alt="Glyph Countdown icon: twelve clock spokes, three faded, around a red dot">
+  </picture>
+</p>
 
 # Glyph Countdown
 
@@ -121,6 +126,8 @@ duration you last set in the app.
 ### Look and feel
 - **Light and dark themes** for the app and widgets: follow the phone's Display › Appearance,
   or pick Light or Dark regardless of the phone.
+- **App icon**: twelve clock spokes with a red centre, light or dark to match Dark mode, and a
+  single-colour version for themed icons.
 - **NDot font**: on Nothing phones the app uses the NDot font already installed on the phone,
   so it matches the rest of Nothing OS. Elsewhere it uses the open-source Doto font.
 

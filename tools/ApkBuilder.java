@@ -24,12 +24,24 @@ public class ApkBuilder {
         module.initializeAndroidFramework(35);
         PackageBlock pkg = table.newPackage(0x7f, "com.glyphcountdown.app");
 
-        // adaptive icon pieces
+        // adaptive icon pieces: light by default, dark when the phone is in Dark mode
+        // (the -night versions), plus a single-colour shape the system tints for themed icons
         Entry bg = pkg.getOrCreate("", "color", "ic_launcher_bg");
+        EncodeResult light = ValueCoder.encode("#FFF2F3F4");
+        bg.setValueAsRaw(light.valueType, light.value);
+        Entry bgNight = pkg.getOrCreate("-night", "color", "ic_launcher_bg");
         EncodeResult black = ValueCoder.encode("#FF000000");
-        bg.setValueAsRaw(black.valueType, black.value);
+        bgNight.setValueAsRaw(black.valueType, black.value);
         pkg.getOrCreate("-nodpi", "drawable", "ic_launcher_fg")
                 .setValueAsString("res/drawable-nodpi-v4/ic_launcher_fg.png");
+        pkg.getOrCreate("-night-nodpi", "drawable", "ic_launcher_fg")
+                .setValueAsString("res/drawable-night-nodpi-v8/ic_launcher_fg.png");
+        pkg.getOrCreate("-nodpi", "drawable", "ic_launcher_mono")
+                .setValueAsString("res/drawable-nodpi-v4/ic_launcher_mono.png");
+        module.add(new FileInputSource(new File(app, "res/drawable-night-nodpi/ic_launcher_fg.png"),
+                "res/drawable-night-nodpi-v8/ic_launcher_fg.png"));
+        module.add(new FileInputSource(new File(app, "res/drawable-nodpi/ic_launcher_mono.png"),
+                "res/drawable-nodpi-v4/ic_launcher_mono.png"));
         pkg.getOrCreate("-xxxhdpi", "mipmap", "ic_launcher")
                 .setValueAsString("res/mipmap-xxxhdpi-v4/ic_launcher.png");
         pkg.getOrCreate("-anydpi-v26", "mipmap", "ic_launcher")
