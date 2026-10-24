@@ -46,6 +46,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     private SensorManager sensors;
     private Sensor gravity;
     private long faceDownSince;
+    private static final long FLIP_HOLD_MS = 500;   // face-down this long starts the timer
 
     private final Runnable frame = new Runnable() {
         @Override public void run() {
@@ -226,14 +227,14 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
     private void onPrimary() {
         switch (st.mode) {
-            case TimerState.SET: startTimer(); break;
+            case TimerState.SET: startTimer(false); break;
             case TimerState.RUN: TimerService.send(this, TimerService.ACTION_PAUSE); break;
             case TimerState.PAUSE: TimerService.send(this, TimerService.ACTION_RESUME); break;
             default: TimerService.send(this, TimerService.ACTION_RESET); break;
         }
     }
 
-    private void startTimer() {
+    private void startTimer(boolean flipped) {
         if (st.setSeconds() <= 0) {
             dial.performHapticFeedback(HapticFeedbackConstants.REJECT);
             return;
@@ -242,7 +243,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
-        TimerService.send(this, TimerService.ACTION_START);
+        TimerService.start(this, flipped);
     }
 
     @Override
@@ -324,10 +325,10 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         long now = SystemClock.elapsedRealtime();
         if (faceDownSince == 0) {
             faceDownSince = now;
-        } else if (now - faceDownSince > 800) {
+        } else if (now - faceDownSince > FLIP_HOLD_MS) {
             faceDownSince = 0;
             dial.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
-            startTimer();
+            startTimer(true);
         }
     }
 

@@ -34,8 +34,21 @@ final class Placement {
     private boolean near, still;
     private int state = OPEN, pending = OPEN;
     private long pendingSince;
+    private long assumedUntil;   // flip to start: taken as face-down on a table until then, unless it moves
 
     int state() { return state; }
+
+    /**
+     * Flip to start: the app has just seen the phone held face-down and flat, so take it as lying
+     * face-down on a table straight away instead of waiting the usual 3 s to prove it is still.
+     * Readings still overrule this: if it turns out to be moving, tilted or face-up, it changes as usual.
+     */
+    void assumeFaceDown(long t) {
+        head = count = 0;   // older readings may include the flip itself
+        state = pending = TABLE_DOWN;
+        still = true;
+        assumedUntil = t + WINDOW_MS;
+    }
 
     /** Whether the matrix should light here (before the screen-on rule). */
     static boolean lights(int state) { return state == OPEN || state == TABLE_DOWN; }
@@ -83,13 +96,16 @@ final class Placement {
             loZ = Math.min(loZ, gz[i]); hiZ = Math.max(hiZ, gz[i]);
             oldest = times[i];
         }
-        if (n < 20 || t - oldest < WINDOW_MS * 0.8) { still = false; return; }
+        boolean warming = n < 20 || t - oldest < WINDOW_MS * 0.8;
+        boolean assumed = t < assumedUntil;
+        if (warming && !assumed) { still = false; return; }
+        if (n < 5) return;   // just flipped: too few readings yet to say it moves
         double med = median(v, n);
         for (int i = 0; i < n; i++) v[i] = Math.abs(v[i] - med);
         double wobble = 1.4826 * median(v, n);
         double drift = Math.max(hiX - loX, Math.max(hiY - loY, hiZ - loZ));
-        if (still && (wobble > MOVING_WOBBLE || drift > MOVING_DRIFT)) still = false;
-        else if (!still && wobble < STILL_WOBBLE && drift < STILL_DRIFT) still = true;
+        if (still && (wobble > MOVING_WOBBLE || drift > MOVING_DRIFT)) { still = false; assumedUntil = 0; }
+        else if (!still && !warming && wobble < STILL_WOBBLE && drift < STILL_DRIFT) still = true;
     }
 
     private static double median(double[] v, int n) {

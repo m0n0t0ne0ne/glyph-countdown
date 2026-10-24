@@ -48,6 +48,8 @@ public class TimerService extends Service {
     public static final String ACTION_TOGGLE = "com.glyphcountdown.app.TOGGLE";
     /** Set on intents sent with startForegroundService / getForegroundService. */
     public static final String EXTRA_FG = "fg";
+    /** On ACTION_START: started by flipping the phone face-down (flip to start). */
+    public static final String EXTRA_FLIPPED = "flipped";
 
     private static final String CH_RUN = "timer_running";
     private static final String CH_DONE = "timer_done";
@@ -126,6 +128,12 @@ public class TimerService extends Service {
         else c.startService(i);
     }
 
+    /** Start the timer; flipped when it was started by flipping the phone face-down. */
+    public static void start(Context c, boolean flipped) {
+        c.startForegroundService(new Intent(c, TimerService.class).setAction(ACTION_START)
+                .putExtra(EXTRA_FG, true).putExtra(EXTRA_FLIPPED, flipped));
+    }
+
     @Override public IBinder onBind(Intent intent) { return null; }
 
     @Override
@@ -159,7 +167,7 @@ public class TimerService extends Service {
             else if (st.mode == TimerState.PAUSE) action = ACTION_RESUME;
             else action = ACTION_RESET;
         }
-        if (ACTION_START.equals(action)) start();
+        if (ACTION_START.equals(action)) start(intent != null && intent.getBooleanExtra(EXTRA_FLIPPED, false));
         else if (ACTION_PAUSE.equals(action)) pause();
         else if (ACTION_RESUME.equals(action)) resume();
         else if (ACTION_RESET.equals(action)) reset();
@@ -169,7 +177,7 @@ public class TimerService extends Service {
 
     // ---- timer control ---------------------------------------------------------------
 
-    private void start() {
+    private void start(boolean flipped) {
         int secs = st.setSeconds();
         if (secs <= 0) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return; }
         stopAlarm();
@@ -181,8 +189,10 @@ public class TimerService extends Service {
         prepareSync(); // analyse the alarm sound now, so the animation is in step from the first frame
         startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         acquireWake();
-        initMatrix();
         startPlacementSensors();
+        // flip to start: it's face-down on a table, so light the matrix now (screen on or not)
+        if (flipped) placement.assumeFaceDown(SystemClock.elapsedRealtime());
+        initMatrix();
         handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         handler.post(tick);
         st.notifyChanged();

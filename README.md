@@ -62,7 +62,8 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   tapping the digits, then drag the dot round the tick ring, with a light haptic tick at each step.
   Up to 23 h 59 min 59 s.
 - **Remembers your last time**, ready for next time (and for the widgets).
-- **Flip to start**: with the app open, place the phone face-down to start. Always on.
+- **Flip to start**: with the app open, place the phone face-down to start. The matrix lights
+  straight away, even with the screen still on. Always on.
 - **Time's up shortcut** under the dial shows your animation and sound and opens the Time's up page.
 - **Keeps running with the app closed**: a notification shows a live countdown with
   Pause / Resume / Reset buttons.
