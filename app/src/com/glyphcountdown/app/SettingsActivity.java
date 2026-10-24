@@ -155,9 +155,7 @@ public class SettingsActivity extends Activity {
         cs.addView(text("›", 22, GREY, Fonts.mono(this)));
         col.addView(cs, rowLp());
         col.addView(toggle(Prefs.SCREEN_OFF_ONLY, "Only when screen is off",
-                "The matrix goes dark while you're using the phone, and lights when the screen is off or the phone is face-down."), rowLp());
-        col.addView(toggle(Prefs.POCKET, "Pocket mode",
-                "Turns the Glyph Matrix off while the phone is in a pocket or bag. Face-down on a table still shows it."), rowLp());
+                "Dark while the screen is on. In a pocket, a bag or face-up on a table it's always dark, by itself."), rowLp());
 
         section(col, "WIDGETS");
         col.addView(toggle(Prefs.TRANSLUCENT, "Translucent background",

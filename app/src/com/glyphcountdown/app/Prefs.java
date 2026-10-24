@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 /** On/off settings from the Settings screen. */
 final class Prefs {
-    static final String POCKET = "pocket_mode", TRANSLUCENT = "widget_translucent",
+    static final String TRANSLUCENT = "widget_translucent",
             VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync",
             DIM = "anim_dim", TAP_DISMISS = "double_tap_dismiss";
     private static final String ANIM = "times_up_animation";

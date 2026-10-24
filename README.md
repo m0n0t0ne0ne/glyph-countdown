@@ -37,8 +37,8 @@ face-down to start, and watch the countdown on the back.
 <p align="center"><img src="docs/design/times-up-animations.png" width="700" alt="Live preview of Totem beside a gallery of all eleven time's-up options, with a switch between Phone (3) and Phone (4a) Pro"></p>
 <p align="center"><em>All eleven time's-up options, on the Phone (3) or Phone (4a) Pro matrix</em></p>
 
-<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with the Time's up row, Only when screen is off and Pocket mode, beside four cases showing when the Glyph Matrix lights"></p>
-<p align="center"><em>Only when screen is off: the matrix goes dark while you're using the phone</em></p>
+<p align="center"><img src="docs/design/settings-screen-off.png" width="820" alt="Settings with Countdown style, Only when screen is off and the Time's up row, beside six cases showing when the Glyph Matrix lights"></p>
+<p align="center"><em>When the Glyph Matrix lights: face-down or in your hand, never in a pocket or face-up</em></p>
 
 <p align="center"><img src="docs/design/light-and-dark-themes.png" width="820" alt="Settings in light theme with the Theme picker set to Light, beside the timer screen in light and in dark"></p>
 <p align="center"><em>Settings › Theme (Phone, Light or Dark), and the timer screen in light and dark</em></p>
@@ -85,11 +85,15 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   - **Phone (3)**, 25 × 25: H:MM from an hour up (the colon blinks each second), MM:SS below.
   - **Phone (4a) Pro**, 13 × 13: one number — hours ("2h"), minutes, or seconds in the last
     minute.
-- **Only when screen is off**: the matrix goes dark while you're using the phone and lights
-  when the screen is off. Face-down counts as off, so flip to start shows the countdown
-  even with the app open. On by default; switch it off to keep the matrix lit all the time.
-- **Pocket mode**: the matrix turns off while the phone is in a pocket or bag and comes back
-  when you take it out. Face-down on a table still shows it.
+- **Lights only where you can see it**: the phone works out where it is from its sensors,
+  with nothing to set up.
+  - **Lit**: face-down on a table (even with the app open, so flip to start shows the
+    countdown), or in your hand with the screen off.
+  - **Dark**: while you use the screen, in a pocket or bag, and face-up on a table.
+  - A table is the only place a phone lies flat and perfectly still, so a pocket is never
+    mistaken for one, even when you're sitting down.
+  - **Only when screen is off** (on by default) can be switched off to keep the matrix lit
+    while you use the screen; pockets and face-up stay dark either way.
 
 ### Time's up
 Everything that happens when the timer ends is set on one page (Settings › Time's up, or the
@@ -137,7 +141,7 @@ Tap the gear on the timer screen:
 | Section | Options |
 |---|---|
 | Time's up | Opens the Time's up page: animation, sound, sync, dimming, dim level, vibrate, double-tap to dismiss |
-| Glyph Matrix | Countdown style · Only when screen is off · Pocket mode |
+| Glyph Matrix | Countdown style · Only when screen is off |
 | Appearance | Theme: Phone, Light or Dark |
 | Widgets | Translucent background |
 
@@ -213,6 +217,7 @@ file, commit, then `git tag v1.5 && git push origin v1.5`.
 | `app/src/…/MorphEngine.java` | The ten time's-up animations, for both matrix sizes |
 | `app/src/…/CountdownStyles.java`, `CountdownStyleActivity.java` | The ten countdown styles and their picker |
 | `app/src/…/BackTapDetector.java` | Double-tap on the back to dismiss the alarm |
+| `app/src/…/Placement.java` | Works out where the phone is (table, hand, pocket) to light or darken the matrix |
 | `app/src/…/SoundSync.java` | Reads the alarm sound's notes; stutter, dimming and the time's-up frame |
 | `app/src/…/TimesUpActivity.java` | The Time's up page: animation, sound, sync, dimming, vibrate, live preview |
 | `app/src/…/Sounds.java` | The phone's alarm and notification sound lists |
