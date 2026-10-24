@@ -112,8 +112,9 @@ sound, exactly as the alarm will. Changes save as you make them.
   each note, then dimmer steps. Switch it off for stutter only at full brightness.
 - **Dim level**: a slider from subtle to deep sets how dark it dims between notes.
 - **Vibrate** along with the sound, which can be switched off.
-- **Double-tap back to dismiss**: tap the back of the phone twice to stop the alarm. It uses the
-  motion sensor and ignores the alarm's own vibration. On by default; can be switched off.
+- **Double-tap back to dismiss**: tap the back of the phone twice to stop the alarm, whichever
+  way up it is: in your hand, or lying face down or face up on a table. It uses the motion
+  sensor and ignores the alarm's own vibration. On by default; can be switched off.
 
 ### Widgets
 Three sizes, shaped and coloured like Nothing's own widgets: a circle, a pill and a rounded
