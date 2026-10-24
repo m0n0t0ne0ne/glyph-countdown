@@ -197,14 +197,15 @@ Releases are built and signed by GitHub Actions, never on a personal machine:
 
 - **Build check** (`.github/workflows/ci.yml`): every push and pull request is built with a
   throwaway key, so a broken build is caught early.
-- **Release** (`.github/workflows/release.yml`): pushing a tag such as `v1.0` builds that exact
+- **Release** (`.github/workflows/release.yml`): on every push to `main` it checks
+  `versionName` in the manifest. If that version has no release yet, it builds that exact
   commit, signs it with the key stored in the repository's encrypted secrets
-  (`KEYSTORE_BASE64`, `KEYSTORE_PASS`), and publishes the release with the APK, its SHA-256
-  and the certificate fingerprint. The tag must match `versionName` in the manifest, and
-  release notes come from `docs/release-notes/<tag>.md`.
+  (`KEYSTORE_BASE64`, `KEYSTORE_PASS`), and publishes release `v<versionName>` (creating the
+  tag) with the APK, its SHA-256 and the certificate fingerprint. Release notes come from
+  `docs/release-notes/v<versionName>.md`. Pushing a `v*` tag by hand also works.
 
-To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, add the notes
-file, commit, then `git tag v1.5 && git push origin v1.5`.
+To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, add
+`docs/release-notes/v1.5.md`, commit and push to `main`. No tag is needed.
 
 ### Project layout
 

@@ -1,6 +1,8 @@
-# Publishes a release when a version tag is pushed (for example v1.0).
-# Builds from exactly that tagged commit, signs with the key held in repository secrets,
-# and attaches the APK with its SHA-256 and signing-certificate fingerprint.
+# Publishes a release automatically. Every push to main is checked: if versionName in
+# app/AndroidManifest.xml has no release yet, the app is built from that commit, signed with
+# the key held in repository secrets, and published as release v<versionName> (the tag is
+# created by the release). So releasing is just: bump the version, add release notes, push main.
+# Pushing a v* tag by hand still works, as does "Run workflow" on the Actions tab.
 #
 # Repository secrets (Settings › Secrets and variables › Actions):
 #   KEYSTORE_BASE64  the release keystore (.jks), base64-encoded
@@ -9,46 +11,72 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
-  contents: write   # to create the release
+  contents: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release:
+  check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    environment: release
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      release: ${{ steps.v.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0   # full history, to check the tag is on main
+          fetch-depth: 0   # full history, to check the commit is on main
 
-      - name: Check the tag points at a commit on main
+      - name: Decide whether this commit needs a release
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          app=$(grep -o 'android:versionName="[^"]*"' app/AndroidManifest.xml | cut -d'"' -f2)
+          echo "version=$app" >> "$GITHUB_OUTPUT"
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "Tag $GITHUB_REF_NAME is not on main; only commits on main are released"; exit 1
+            echo "Commit is not on main; only commits on main are released"; exit 1
           fi
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$app" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match versionName $app in app/AndroidManifest.xml"; exit 1
+          fi
+          if gh release view "v$app" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v$app is already released; nothing to do"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$app has no release yet; releasing it"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write   # to create the release and its tag
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      TAG: v${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Check the tag matches the app version
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          app=$(grep -o 'android:versionName="[^"]*"' app/AndroidManifest.xml | cut -d'"' -f2)
-          if [ "$version" != "$app" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match versionName $app in app/AndroidManifest.xml"; exit 1
-          fi
-          echo "VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Download pinned build tools
         run: ./setup-deps.sh
@@ -79,7 +107,7 @@ jobs:
           sha=$(sha256sum "$apk" | cut -d' ' -f1)
           cert=$(java -cp deps/tools/apksig com.android.apksigner.ApkSignerTool verify --print-certs "$apk" \
                  | grep -m1 'certificate SHA-256 digest' | awk '{print $NF}')
-          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          notes="docs/release-notes/$TAG.md"
           { if [ -f "$notes" ]; then cat "$notes"; else echo "Glyph Countdown $VERSION"; fi
             echo
             echo "SHA-256 (APK): \`$sha\`"
@@ -92,5 +120,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "$APK" \
-            --title "Glyph Countdown $VERSION" --notes-file release-notes.md --verify-tag
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Glyph Countdown $VERSION" --notes-file release-notes.md

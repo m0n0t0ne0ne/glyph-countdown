@@ -20,10 +20,10 @@ Please report security issues privately using GitHub's
 ## How releases are signed
 
 Official releases are built and signed by the **Release** GitHub Actions workflow from the
-tagged commit. The signing key is held only in the repository's encrypted secrets and on its
+released commit on `main`. The signing key is held only in the repository's encrypted secrets and on its
 owner's offline backup; it never appears in this repository.
 
-The workflow only releases a tag that points at a commit already on `main`, waits for approval
+The workflow only releases a commit already on `main`, waits for approval
 in the `release` environment, and deletes the key from the build machine even if the build fails.
 
 Every release lists the signing certificate's SHA-256 fingerprint. It is the same for every
