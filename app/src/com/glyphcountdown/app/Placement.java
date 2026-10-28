@@ -25,6 +25,9 @@ final class Placement {
     private static final long WINDOW_MS = 3000;
     private static final long SETTLE_MS = 500, COVER_SETTLE_MS = 1000;  // ignore a hand brushing the sensor
     private static final int N = 512, SPIKE = 9;     // buffer size; readings in the knock filter
+    private static final long FLIP_SETTLE_MS = 1000;    // after flip to start: the hand lets go, the phone rocks
+    private static final long BUZZ_SETTLE_MS = 300;     // after the alarm's vibration stops
+    private static final int BUZZ_AVERAGE = 25;          // while it buzzes, the angle is averaged over ~1 s
 
     private final long[] times = new long[N];
     private final double[] rx = new double[N], ry = new double[N], rz = new double[N];   // raw readings
@@ -34,20 +37,32 @@ final class Placement {
     private boolean near, still;
     private int state = OPEN, pending = OPEN;
     private long pendingSince;
-    private long assumedUntil;   // flip to start: taken as face-down on a table until then, unless it moves
+    private long ignoreBefore;   // readings before this don't count towards stillness (settling, buzzing)
+    private boolean buzzing;     // the alarm is vibrating the phone
 
     int state() { return state; }
 
     /**
      * Flip to start: the app has just seen the phone held face-down and flat, so take it as lying
      * face-down on a table straight away instead of waiting the usual 3 s to prove it is still.
-     * Readings still overrule this: if it turns out to be moving, tilted or face-up, it changes as usual.
+     * The first second is ignored while the hand lets go and the phone settles; after that, readings
+     * overrule this as usual: if it turns out to be moving, tilted or face-up, it changes.
      */
     void assumeFaceDown(long t) {
         head = count = 0;   // older readings may include the flip itself
         state = pending = TABLE_DOWN;
         still = true;
-        assumedUntil = t + WINDOW_MS;
+        ignoreBefore = t + FLIP_SETTLE_MS;
+    }
+
+    /**
+     * The alarm is (or stops) vibrating the phone. A buzz shakes it on the table, which isn't the
+     * phone being moved, so stillness is left as it was meanwhile. Being picked up still shows,
+     * as a change in its angle (averaged over a second, so the buzz doesn't jolt it).
+     */
+    void buzzing(long t, boolean on) {
+        buzzing = on;
+        if (!on) ignoreBefore = Math.max(ignoreBefore, t + BUZZ_SETTLE_MS);
     }
 
     /** Whether the matrix should light here (before the screen-on rule). */
@@ -83,13 +98,14 @@ final class Placement {
      * no slow drift in the phone's angle over 3 s (a body breathing or shifting always drifts).
      */
     private void judgeStillness(long t) {
+        if (buzzing) return;   // the alarm's own vibration isn't movement
         double[] v = new double[count];
         double loX = 1e9, hiX = -1e9, loY = 1e9, hiY = -1e9, loZ = 1e9, hiZ = -1e9;
         int n = 0;
         long oldest = t;
         for (int k = 0; k < count; k++) {
             int i = (head - 1 - k + N) % N;
-            if (t - times[i] > WINDOW_MS) break;
+            if (t - times[i] > WINDOW_MS || times[i] < ignoreBefore) break;
             v[n++] = mags[i];
             loX = Math.min(loX, gx[i]); hiX = Math.max(hiX, gx[i]);
             loY = Math.min(loY, gy[i]); hiY = Math.max(hiY, gy[i]);
@@ -97,15 +113,23 @@ final class Placement {
             oldest = times[i];
         }
         boolean warming = n < 20 || t - oldest < WINDOW_MS * 0.8;
-        boolean assumed = t < assumedUntil;
-        if (warming && !assumed) { still = false; return; }
-        if (n < 5) return;   // just flipped: too few readings yet to say it moves
+        // a short window because readings were set aside (settling, buzzing) keeps what was judged
+        // before, until enough new readings show it moving; otherwise a short window proves nothing
+        boolean resumed = t - WINDOW_MS < ignoreBefore;
+        if (warming && !resumed) { still = false; return; }
+        if (n < 5) return;
         double med = median(v, n);
         for (int i = 0; i < n; i++) v[i] = Math.abs(v[i] - med);
         double wobble = 1.4826 * median(v, n);
         double drift = Math.max(hiX - loX, Math.max(hiY - loY, hiZ - loZ));
-        if (still && (wobble > MOVING_WOBBLE || drift > MOVING_DRIFT)) { still = false; assumedUntil = 0; }
+        if (still && (wobble > MOVING_WOBBLE || drift > MOVING_DRIFT)) still = false;
         else if (!still && !warming && wobble < STILL_WOBBLE && drift < STILL_DRIFT) still = true;
+    }
+
+    private double recentMean(double[] a, int m) {
+        double sum = 0;
+        for (int k = 0; k < m; k++) sum += a[(head - 1 - k + N) % N];
+        return sum / m;
     }
 
     private static double median(double[] v, int n) {
@@ -118,6 +142,10 @@ final class Placement {
         if (count > 0) {
             int i = (head - 1 + N) % N;
             double ax = Math.abs(gx[i]), ay = Math.abs(gy[i]), z = gz[i];
+            if (buzzing) {   // a buzz jolts single readings; its average still shows the angle
+                int m = Math.min(BUZZ_AVERAGE, count);
+                ax = Math.abs(recentMean(rx, m)); ay = Math.abs(recentMean(ry, m)); z = recentMean(rz, m);
+            }
             if (still && z < -FLAT_Z && ax < DOWN_XY && ay < DOWN_XY) return TABLE_DOWN;
             if (still && z > FLAT_Z && ax < UP_XY && ay < UP_XY) return TABLE_UP;
         }

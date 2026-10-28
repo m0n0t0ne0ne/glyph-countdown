@@ -93,6 +93,8 @@ on a Nothing phone the app itself uses Nothing's NDot font, which can't be inclu
   - **Dark**: while you use the screen, in a pocket or bag, and face-up on a table.
   - A table is the only place a phone lies flat and perfectly still, so a pocket is never
     mistaken for one, even when you're sitting down.
+  - The alarm's own vibration doesn't count as the phone moving, so the time's-up animation
+    stays lit on the table for as long as it rings.
   - **Only when screen is off** (on by default) can be switched off to keep the matrix lit
     while you use the screen; pockets and face-up stay dark either way.
 
