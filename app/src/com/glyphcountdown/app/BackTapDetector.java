@@ -37,7 +37,7 @@ final class BackTapDetector implements SensorEventListener {
     interface Listener { void onDoubleTap(); }
 
     private static final float MIN_JOLT_HELD = 2.5f;   // m/s², weakest tap that counts in the hand
-    private static final float MIN_JOLT_FLAT = 0.5f;   // lying flat on a surface, a tap moves it far less
+    private static final float MIN_JOLT_FLAT = 0.8f;   // lying flat: recorded table taps peak at 2.4-5.7, a still table under 0.1
     private static final float FLAT_Z = 9.0f;          // gravity this much along the screen axis: flat (about 25°)
     private static final float NOISE_FACTOR = 5f;      // a tap must stand this far above background
     private static final float SIDE_RATIO = 1.5f;      // mostly through the screen, not sideways
@@ -65,17 +65,22 @@ final class BackTapDetector implements SensorEventListener {
     private static final int REC_MAX = 60 * 500;   // about a minute at the fastest rate
     private Recording rec;
 
-    void start(boolean record, String note) {
+    /** buzzFrom: when the alarm started vibrating with {@code buzz} (-1 if it doesn't vibrate). */
+    void start(long buzzFrom, long[] buzz, boolean record, String note) {
         if (running || sensors == null) return;
         Sensor s = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (s == null) return;
         core.reset(SystemClock.elapsedRealtime());
+        if (buzzFrom >= 0) core.buzz(buzzFrom, buzz);
         rec = record ? new Recording(s, note, core.startedAt) : null;
         thread = new HandlerThread("back-tap", android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
         thread.start();
         sensors.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST, new Handler(thread.getLooper()));
         running = true;
     }
+
+    /** The alarm's vibration stopped while still listening for taps. */
+    void buzzStopped() { core.buzzStopped(); }
 
     void stop() {
         if (running) sensors.unregisterListener(this);
@@ -168,7 +173,37 @@ final class BackTapDetector implements SensorEventListener {
         float lastJolt, lastNeeded;
         boolean lastFlat, lastSpikeSeen, lastCounted;
 
+        // The alarm's vibration pattern, so the jolt of its motor starting or stopping is never taken
+        // for a tap (lying flat, any sharp jolt counts). Times in ms on the same clock as readings.
+        private volatile long buzzFrom = -1;   // set from the main thread, read on the sensor thread
+        private volatile long[] buzzPattern;
+        private static final long BUZZ_EDGE_MS = 60;
+
+        /** The alarm started vibrating at {@code from} with this repeating waveform (off, on, off, on…). */
+        void buzz(long from, long[] pattern) { buzzPattern = pattern; buzzFrom = from; }
+
+        /** The vibration stopped (the alarm's 3-minute limit): nothing to set aside any more. */
+        void buzzStopped() { buzzFrom = -1; }
+
+        private boolean nearBuzzEdge(long now) {
+            long buzzFrom = this.buzzFrom;
+            long[] buzzPattern = this.buzzPattern;
+            if (buzzFrom < 0 || buzzPattern == null || now < buzzFrom - BUZZ_EDGE_MS) return false;
+            long cycle = 0;
+            for (long d : buzzPattern) cycle += d;
+            if (cycle <= 0) return false;
+            long into = (now - buzzFrom) % cycle, edge = 0;
+            if (into < BUZZ_EDGE_MS || cycle - into < BUZZ_EDGE_MS) return true;
+            for (long d : buzzPattern) {
+                edge += d;
+                if (Math.abs(into - edge) < BUZZ_EDGE_MS) return true;
+            }
+            return false;
+        }
+
         void reset(long now) {
+            buzzFrom = -1;
+            buzzPattern = null;
             startedAt = now;
             lastTap = lastSpike = -10_000;
             primed = false;
@@ -191,10 +226,17 @@ final class BackTapDetector implements SensorEventListener {
             boolean flat = Math.abs(gravity[2]) > FLAT_Z;   // face down or face up
             float minJolt = flat ? MIN_JOLT_FLAT : MIN_JOLT_HELD;
             float az = Math.abs(dz), side = Math.max(Math.abs(dx), Math.abs(dy));
+            // In the hand a tap pushes the phone through the screen. Lying on a table, the table
+            // stops that, and the tap comes out as a sharp jolt along the phone instead (recorded:
+            // 2.5-5.5 m/s² along its length, ~0.1 through the screen), so any direction counts.
+            float jolt = flat ? (float) Math.sqrt(dx * dx + dy * dy + dz * dz) : az;
+            float background = flat ? jolt : Math.max(az, side);
             float needed = Math.max(minJolt, NOISE_FACTOR * noise);
-            boolean spike = az > needed && az > SIDE_RATIO * side;
-            lastJolt = az; lastNeeded = needed; lastFlat = flat; lastSpikeSeen = spike; lastCounted = false;
-            if (!spike) noise = 0.98f * noise + 0.02f * Math.max(az, side);
+            boolean spike = jolt > needed && (flat || az > SIDE_RATIO * side);
+            lastJolt = jolt; lastNeeded = needed; lastFlat = flat; lastSpikeSeen = spike; lastCounted = false;
+            // a tap rings on for tens of ms: that's the tap, not background movement
+            if (!spike && now - lastSpike >= REFRACTORY_MS) noise = 0.98f * noise + 0.02f * background;
+            if (spike && nearBuzzEdge(now)) return false;   // the alarm's motor starting or stopping
             if (!spike || now - startedAt < SETTLE_MS || now - lastSpike < REFRACTORY_MS) {
                 if (spike) lastSpike = now;
                 return false;

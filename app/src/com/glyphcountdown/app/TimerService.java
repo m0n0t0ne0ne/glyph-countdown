@@ -65,6 +65,8 @@ public class TimerService extends Service {
     private Ringtone ringtone;       // fallback if the sound can't be opened with MediaPlayer
     private MediaPlayer player;      // alarm sound; its position paces the synced animation
     private Vibrator vibrator;
+    private static final long[] BUZZ = {0, 400, 300, 400, 900};   // off, on, off, on, off… repeating
+    private long buzzStartedAt = -1;   // when the alarm's vibration started, for double-tap
     private long doneAt;
 
     // ---- time's-up animation and sound sync
@@ -253,7 +255,7 @@ public class TimerService extends Service {
                     });
                 }
             });
-            backTap.start(Prefs.get(this, Prefs.TAP_RECORD),
+            backTap.start(buzzStartedAt, BUZZ, Prefs.get(this, Prefs.TAP_RECORD),
                     "version=" + appVersion() + " vibrate=" + Prefs.get(this, Prefs.VIBRATE) + " animation=" + anim
                     + " placement=" + placement.state() + " screenOn=" + screenOn);
         }
@@ -459,8 +461,9 @@ public class TimerService extends Service {
         if (!Prefs.get(this, Prefs.VIBRATE)) return;
         try {
             vibrator = getSystemService(VibratorManager.class).getDefaultVibrator();
-            vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0, 400, 300, 400, 900}, 0),
+            vibrator.vibrate(VibrationEffect.createWaveform(BUZZ, 0),
                     VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM));
+            buzzStartedAt = SystemClock.elapsedRealtime();
         } catch (Throwable ignored) {}
     }
 
@@ -471,6 +474,8 @@ public class TimerService extends Service {
         try { if (player != null) { player.stop(); player.release(); } } catch (Throwable ignored) {}
         player = null;
         try { if (vibrator != null) vibrator.cancel(); } catch (Throwable ignored) {}
+        if (buzzStartedAt >= 0 && backTap != null) backTap.buzzStopped();
+        buzzStartedAt = -1;
         vibrator = null;
     }
 
