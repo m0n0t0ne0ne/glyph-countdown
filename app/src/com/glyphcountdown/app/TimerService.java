@@ -426,6 +426,7 @@ public class TimerService extends Service {
     // ---- alarm -----------------------------------------------------------------------
 
     private void startAlarm() {
+        placement.ringing(SystemClock.elapsedRealtime(), true);   // its sound and buzz aren't the phone moving
         lastPos = 0;
         soundRepeats = 0;
         try {
@@ -458,17 +459,16 @@ public class TimerService extends Service {
             vibrator = getSystemService(VibratorManager.class).getDefaultVibrator();
             vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0, 400, 300, 400, 900}, 0),
                     VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM));
-            placement.buzzing(SystemClock.elapsedRealtime(), true);   // its buzz isn't the phone moving
         } catch (Throwable ignored) {}
     }
 
     private void stopAlarm() {
+        placement.ringing(SystemClock.elapsedRealtime(), false);
         try { if (ringtone != null) ringtone.stop(); } catch (Throwable ignored) {}
         ringtone = null;
         try { if (player != null) { player.stop(); player.release(); } } catch (Throwable ignored) {}
         player = null;
         try { if (vibrator != null) vibrator.cancel(); } catch (Throwable ignored) {}
-        if (vibrator != null) placement.buzzing(SystemClock.elapsedRealtime(), false);
         vibrator = null;
     }
 

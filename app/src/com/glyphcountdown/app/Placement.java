@@ -26,8 +26,12 @@ final class Placement {
     private static final long SETTLE_MS = 500, COVER_SETTLE_MS = 1000;  // ignore a hand brushing the sensor
     private static final int N = 512, SPIKE = 9;     // buffer size; readings in the knock filter
     private static final long FLIP_SETTLE_MS = 1000;    // after flip to start: the hand lets go, the phone rocks
-    private static final long BUZZ_SETTLE_MS = 300;     // after the alarm's vibration stops
-    private static final int BUZZ_AVERAGE = 25;          // while it buzzes, the angle is averaged over ~1 s
+    private static final long RING_SETTLE_MS = 300;     // after the alarm stops shaking it
+    private static final int RING_AVERAGE = 25;          // while it rings, the angle is averaged over ~1 s
+    // Readings are kept at about 25 a second whatever rate they arrive at: another listener on the
+    // same sensor (double-tap to dismiss asks for the fastest rate) makes Android deliver them faster,
+    // and the buffer must still hold the full 3 s window.
+    private static final long MIN_GAP_MS = 35;
 
     private final long[] times = new long[N];
     private final double[] rx = new double[N], ry = new double[N], rz = new double[N];   // raw readings
@@ -38,7 +42,7 @@ final class Placement {
     private int state = OPEN, pending = OPEN;
     private long pendingSince;
     private long ignoreBefore;   // readings before this don't count towards stillness (settling, buzzing)
-    private boolean buzzing;     // the alarm is vibrating the phone
+    private boolean ringing;     // the alarm is ringing: its sound and vibration shake the phone
 
     int state() { return state; }
 
@@ -56,13 +60,13 @@ final class Placement {
     }
 
     /**
-     * The alarm is (or stops) vibrating the phone. A buzz shakes it on the table, which isn't the
-     * phone being moved, so stillness is left as it was meanwhile. Being picked up still shows,
-     * as a change in its angle (averaged over a second, so the buzz doesn't jolt it).
+     * The alarm starts (or stops) ringing. Its vibration, and a loud speaker, shake the phone on the
+     * table, which isn't the phone being moved, so stillness is left as it was meanwhile. Being
+     * picked up still shows, as a change in its angle (averaged over a second, so shaking doesn't jolt it).
      */
-    void buzzing(long t, boolean on) {
-        buzzing = on;
-        if (!on) ignoreBefore = Math.max(ignoreBefore, t + BUZZ_SETTLE_MS);
+    void ringing(long t, boolean on) {
+        if (ringing && !on) ignoreBefore = Math.max(ignoreBefore, t + RING_SETTLE_MS);
+        ringing = on;
     }
 
     /** Whether the matrix should light here (before the screen-on rule). */
@@ -76,6 +80,7 @@ final class Placement {
 
     /** Raw accelerometer reading in m/s². Returns true if the settled state changed. */
     boolean accel(long t, double x, double y, double z) {
+        if (count > 0 && t - times[(head - 1 + N) % N] < MIN_GAP_MS) return update(t);
         times[head] = t; rx[head] = x; ry[head] = y; rz[head] = z;
         mags[head] = Math.sqrt(x * x + y * y + z * z);
         if (count < N) count++;
@@ -98,7 +103,7 @@ final class Placement {
      * no slow drift in the phone's angle over 3 s (a body breathing or shifting always drifts).
      */
     private void judgeStillness(long t) {
-        if (buzzing) return;   // the alarm's own vibration isn't movement
+        if (ringing) return;   // the alarm shaking the phone isn't movement
         double[] v = new double[count];
         double loX = 1e9, hiX = -1e9, loY = 1e9, hiY = -1e9, loZ = 1e9, hiZ = -1e9;
         int n = 0;
@@ -142,8 +147,8 @@ final class Placement {
         if (count > 0) {
             int i = (head - 1 + N) % N;
             double ax = Math.abs(gx[i]), ay = Math.abs(gy[i]), z = gz[i];
-            if (buzzing) {   // a buzz jolts single readings; its average still shows the angle
-                int m = Math.min(BUZZ_AVERAGE, count);
+            if (ringing) {   // shaking jolts single readings; their average still shows the angle
+                int m = Math.min(RING_AVERAGE, count);
                 ax = Math.abs(recentMean(rx, m)); ay = Math.abs(recentMean(ry, m)); z = recentMean(rz, m);
             }
             if (still && z < -FLAT_Z && ax < DOWN_XY && ay < DOWN_XY) return TABLE_DOWN;
