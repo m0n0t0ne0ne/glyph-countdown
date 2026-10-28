@@ -66,7 +66,6 @@ public class TimerService extends Service {
     private MediaPlayer player;      // alarm sound; its position paces the synced animation
     private Vibrator vibrator;
     private static final long[] BUZZ = {0, 400, 300, 400, 900};   // off, on, off, on, off… repeating
-    private long buzzStartedAt = -1;   // when the alarm's vibration started, for double-tap
     private long doneAt;
 
     // ---- time's-up animation and sound sync
@@ -77,14 +76,28 @@ public class TimerService extends Service {
     private int lastPos;
     private long soundRepeats;
 
-    // ---- double-tap the back to dismiss the alarm
-    private BackTapDetector backTap;
+    // ---- pick up to dismiss: picking the phone up off the table, or turning its screen on,
+    //      stops the alarm. The first moments are ignored, in case the alarm itself wakes the screen.
+    private final PickupDetector pickup = new PickupDetector();
+    private static final long SCREEN_GRACE_MS = 2000;
+
+    /** Stop the alarm because the phone was picked up or woken (posted: may come from a sensor callback). */
+    private void dismissByPickup() {
+        handler.post(new Runnable() {
+            @Override public void run() { if (st.mode == TimerState.DONE) reset(); }
+        });
+    }
 
     // ---- "only when screen is off": the matrix goes dark while the screen is on
     private boolean screenOn;
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
             screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
+            if (screenOn && st.mode == TimerState.DONE && Prefs.get(c, Prefs.PICKUP_DISMISS)
+                    && SystemClock.elapsedRealtime() - doneAt > SCREEN_GRACE_MS) {
+                dismissByPickup();
+                return;
+            }
             pushMatrix();
         }
     };
@@ -103,6 +116,7 @@ public class TimerService extends Service {
                 changed = placement.proximity(t, e.values[0] < Math.min(max, 5f));
             } else {
                 changed = placement.accel(t, e.values[0], e.values[1], e.values[2]);
+                if (pickup.accel(e.values[0], e.values[1], e.values[2])) { dismissByPickup(); return; }
             }
             if (changed) pushMatrix();
         }
@@ -183,7 +197,7 @@ public class TimerService extends Service {
         int secs = st.setSeconds();
         if (secs <= 0) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return; }
         stopAlarm();
-        if (backTap != null) backTap.stop();
+        pickup.disarm();
         st.totalMs = secs * 1000L;
         st.endAtElapsed = SystemClock.elapsedRealtime() + st.totalMs;
         st.mode = TimerState.RUN;
@@ -227,7 +241,7 @@ public class TimerService extends Service {
 
     private void reset() {
         handler.removeCallbacksAndMessages(null);
-        if (backTap != null) backTap.stop();
+        pickup.disarm();
         stopPlacementSensors();
         stopAlarm();
         releaseWake();
@@ -247,18 +261,9 @@ public class TimerService extends Service {
         anim = Prefs.anim(this);
         prepareSync();
         startAlarm();
-        if (Prefs.get(this, Prefs.TAP_DISMISS)) {
-            if (backTap == null) backTap = new BackTapDetector(getApplicationContext(), new BackTapDetector.Listener() {
-                @Override public void onDoubleTap() {
-                    handler.post(new Runnable() {
-                        @Override public void run() { if (st.mode == TimerState.DONE) reset(); }
-                    });
-                }
-            });
-            backTap.start(buzzStartedAt, BUZZ, Prefs.get(this, Prefs.TAP_RECORD),
-                    "version=" + appVersion() + " vibrate=" + Prefs.get(this, Prefs.VIBRATE) + " animation=" + anim
-                    + " placement=" + placement.state() + " screenOn=" + screenOn);
-        }
+        // pick up to dismiss: only from a table, so walking about with it in a pocket doesn't count
+        if (Prefs.get(this, Prefs.PICKUP_DISMISS)) pickup.arm(Placement.onTable(placement.state()), placement.recentGravity());
+        else pickup.disarm();
         postNotification();
         handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
         handler.post(blink);
@@ -463,7 +468,6 @@ public class TimerService extends Service {
             vibrator = getSystemService(VibratorManager.class).getDefaultVibrator();
             vibrator.vibrate(VibrationEffect.createWaveform(BUZZ, 0),
                     VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM));
-            buzzStartedAt = SystemClock.elapsedRealtime();
         } catch (Throwable ignored) {}
     }
 
@@ -474,8 +478,6 @@ public class TimerService extends Service {
         try { if (player != null) { player.stop(); player.release(); } } catch (Throwable ignored) {}
         player = null;
         try { if (vibrator != null) vibrator.cancel(); } catch (Throwable ignored) {}
-        if (buzzStartedAt >= 0 && backTap != null) backTap.buzzStopped();
-        buzzStartedAt = -1;
         vibrator = null;
     }
 
@@ -573,16 +575,11 @@ public class TimerService extends Service {
 
     private static String two(long n) { return n < 10 ? "0" + n : String.valueOf(n); }
 
-    private String appVersion() {
-        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-        catch (Throwable t) { return "?"; }
-    }
-
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         try { unregisterReceiver(screenReceiver); } catch (Throwable ignored) {}
-        if (backTap != null) backTap.stop();
+        pickup.disarm();
         stopPlacementSensors();
         stopAlarm();
         releaseWake();

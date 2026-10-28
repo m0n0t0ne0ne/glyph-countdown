@@ -115,11 +115,9 @@ sound, exactly as the alarm will. Changes save as you make them.
   each note, then dimmer steps. Switch it off for stutter only at full brightness.
 - **Dim level**: a slider from subtle to deep sets how dark it dims between notes.
 - **Vibrate** along with the sound, which can be switched off.
-- **Double-tap back to dismiss**: tap the back of the phone twice to stop the alarm, whichever
-  way up it is: in your hand, or lying face down or face up on a table. It uses the motion
-  sensor and ignores the alarm's own vibration. On by default; can be switched off.
-- **Record taps** (troubleshooting, off by default): saves the motion readings from each alarm
-  to Downloads as a CSV file, so double-tap can be tuned on real taps.
+- **Pick up to dismiss**: picking the phone up off the table, or turning its screen on, stops
+  the alarm. Knocks, the alarm's own vibration and a loud speaker don't count, and if the alarm
+  starts in a pocket, walking about doesn't either. On by default; can be switched off.
 
 ### Widgets
 Three sizes, shaped and coloured like Nothing's own widgets: a circle, a pill and a rounded
@@ -146,7 +144,7 @@ Tap the gear on the timer screen:
 
 | Section | Options |
 |---|---|
-| Time's up | Opens the Time's up page: animation, sound, sync, dimming, dim level, vibrate, double-tap to dismiss |
+| Time's up | Opens the Time's up page: animation, sound, sync, dimming, dim level, vibrate, pick up to dismiss |
 | Glyph Matrix | Countdown style · Only when screen is off |
 | Appearance | Theme: Phone, Light or Dark |
 | Widgets | Translucent background |
@@ -170,7 +168,7 @@ other phones the timer, sounds and widgets still work.
 
 - Pressing the Glyph Button on the back opens Nothing's toy carousel, which takes the matrix
   over from apps. The timer comes back when the carousel closes or you reopen the app. Apps
-  can't see Glyph Button presses, so to dismiss the alarm from the back, double-tap the phone.
+  can't see Glyph Button presses, so to dismiss the alarm, pick the phone up or turn its screen on.
 - Google Clock's own alarm sounds are private to that app, so only sounds installed on the
   phone itself are listed.
 - Face-down start only works while the app is open on screen.
@@ -223,7 +221,7 @@ To release: bump `versionCode` and `versionName` in `app/AndroidManifest.xml`, a
 | `app/src/…/MatrixRenderer.java` | Draws frames for the Glyph Matrix (25 × 25 and 13 × 13) |
 | `app/src/…/MorphEngine.java` | The ten time's-up animations, for both matrix sizes |
 | `app/src/…/CountdownStyles.java`, `CountdownStyleActivity.java` | The ten countdown styles and their picker |
-| `app/src/…/BackTapDetector.java` | Double-tap on the back to dismiss the alarm |
+| `app/src/…/PickupDetector.java` | Pick up to dismiss the alarm |
 | `app/src/…/Placement.java` | Works out where the phone is (table, hand, pocket) to light or darken the matrix |
 | `app/src/…/SoundSync.java` | Reads the alarm sound's notes; stutter, dimming and the time's-up frame |
 | `app/src/…/TimesUpActivity.java` | The Time's up page: animation, sound, sync, dimming, vibrate, live preview |

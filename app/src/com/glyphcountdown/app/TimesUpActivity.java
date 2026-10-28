@@ -50,7 +50,7 @@ public class TimesUpActivity extends Activity {
     private final TextView[] tabs = new TextView[2];
     private LinearLayout soundList;
     private LinearLayout syncGroup;
-    private ToggleRow syncRow, dimRow, vibrateRow, tapRow, recordRow;
+    private ToggleRow syncRow, dimRow, vibrateRow, pickupRow;
     private Slider slider;
     private TextView depthValue, syncNote;
     private View sliderCard;
@@ -173,10 +173,8 @@ public class TimesUpActivity extends Activity {
         section(col, "ALARM");
         vibrateRow = new ToggleRow("Vibrate", Prefs.VIBRATE);
         col.addView(vibrateRow.view, lp(-1, -2, 10));
-        tapRow = new ToggleRow("Double-tap back to dismiss", Prefs.TAP_DISMISS);
-        col.addView(tapRow.view, lp(-1, -2, 10));
-        recordRow = new ToggleRow("Record taps", Prefs.TAP_RECORD);
-        col.addView(recordRow.view, lp(-1, -2, 10));
+        pickupRow = new ToggleRow("Pick up to dismiss", Prefs.PICKUP_DISMISS);
+        col.addView(pickupRow.view, lp(-1, -2, 10));
 
         TextView foot = text("Changes save as you make them. Previews play at alarm volume.", 12, GREY, Fonts.mono(this));
         foot.setGravity(Gravity.CENTER);
@@ -353,12 +351,8 @@ public class TimesUpActivity extends Activity {
         syncNote.setText(isDefault ? "Default flashes on its own, so sync is off while it's picked."
                 : "Sync and dimming apply to all ten animations.");
         vibrateRow.set(Prefs.get(this, Prefs.VIBRATE), "Vibrate along with the alarm sound.");
-        tapRow.set(Prefs.get(this, Prefs.TAP_DISMISS), "Tap the back of the phone twice to stop the alarm.");
-        boolean tap = Prefs.get(this, Prefs.TAP_DISMISS);
-        recordRow.enabled = tap;
-        recordRow.view.setAlpha(tap ? 1f : 0.35f);
-        recordRow.set(Prefs.get(this, Prefs.TAP_RECORD),
-                "Troubleshooting: saves the motion readings from each alarm to Downloads, to help tune double-tap.");
+        pickupRow.set(Prefs.get(this, Prefs.PICKUP_DISMISS),
+                "Picking the phone up off the table, or turning its screen on, stops the alarm.");
         ensureProfile();
     }
 

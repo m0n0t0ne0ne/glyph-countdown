@@ -29,8 +29,7 @@ final class Placement {
     private static final long RING_SETTLE_MS = 300;     // after the alarm stops shaking it
     private static final int RING_AVERAGE = 25;          // while it rings, the angle is averaged over ~1 s
     // Readings are kept at about 25 a second whatever rate they arrive at: another listener on the
-    // same sensor (double-tap to dismiss asks for the fastest rate) makes Android deliver them faster,
-    // and the buffer must still hold the full 3 s window.
+    // same sensor can make Android deliver them faster, and the buffer must still hold the full 3 s window.
     private static final long MIN_GAP_MS = 35;
 
     private final long[] times = new long[N];
@@ -67,6 +66,16 @@ final class Placement {
     void ringing(long t, boolean on) {
         if (ringing && !on) ignoreBefore = Math.max(ignoreBefore, t + RING_SETTLE_MS);
         ringing = on;
+    }
+
+    /** Lying on a table, face down or face up. */
+    static boolean onTable(int state) { return state == TABLE_DOWN || state == TABLE_UP; }
+
+    /** Average raw reading over about the last second (which way up it is), or null with none yet. */
+    double[] recentGravity() {
+        if (count == 0) return null;
+        int m = Math.min(RING_AVERAGE, count);
+        return new double[]{recentMean(rx, m), recentMean(ry, m), recentMean(rz, m)};
     }
 
     /** Whether the matrix should light here (before the screen-on rule). */
