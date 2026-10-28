@@ -118,6 +118,8 @@ sound, exactly as the alarm will. Changes save as you make them.
 - **Double-tap back to dismiss**: tap the back of the phone twice to stop the alarm, whichever
   way up it is: in your hand, or lying face down or face up on a table. It uses the motion
   sensor and ignores the alarm's own vibration. On by default; can be switched off.
+- **Record taps** (troubleshooting, off by default): saves the motion readings from each alarm
+  to Downloads as a CSV file, so double-tap can be tuned on real taps.
 
 ### Widgets
 Three sizes, shaped and coloured like Nothing's own widgets: a circle, a pill and a rounded

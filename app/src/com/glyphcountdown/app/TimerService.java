@@ -246,14 +246,16 @@ public class TimerService extends Service {
         prepareSync();
         startAlarm();
         if (Prefs.get(this, Prefs.TAP_DISMISS)) {
-            if (backTap == null) backTap = new BackTapDetector(this, new BackTapDetector.Listener() {
+            if (backTap == null) backTap = new BackTapDetector(getApplicationContext(), new BackTapDetector.Listener() {
                 @Override public void onDoubleTap() {
                     handler.post(new Runnable() {
                         @Override public void run() { if (st.mode == TimerState.DONE) reset(); }
                     });
                 }
             });
-            backTap.start();
+            backTap.start(Prefs.get(this, Prefs.TAP_RECORD),
+                    "version=" + appVersion() + " vibrate=" + Prefs.get(this, Prefs.VIBRATE) + " animation=" + anim
+                    + " placement=" + placement.state() + " screenOn=" + screenOn);
         }
         postNotification();
         handler.removeCallbacks(tick); handler.removeCallbacks(blink); handler.removeCallbacks(animTick);
@@ -565,6 +567,11 @@ public class TimerService extends Service {
     }
 
     private static String two(long n) { return n < 10 ? "0" + n : String.valueOf(n); }
+
+    private String appVersion() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (Throwable t) { return "?"; }
+    }
 
     @Override
     public void onDestroy() {

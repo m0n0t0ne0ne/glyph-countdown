@@ -7,7 +7,7 @@ import android.content.SharedPreferences;
 final class Prefs {
     static final String TRANSLUCENT = "widget_translucent",
             VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync",
-            DIM = "anim_dim", TAP_DISMISS = "double_tap_dismiss";
+            DIM = "anim_dim", TAP_DISMISS = "double_tap_dismiss", TAP_RECORD = "tap_record";
     private static final String ANIM = "times_up_animation";
 
     private Prefs() {}
@@ -17,7 +17,8 @@ final class Prefs {
     }
 
     static boolean get(Context c, String key) {
-        return p(c).getBoolean(key, !TRANSLUCENT.equals(key)); // everything but translucency defaults on
+        // everything but translucency and the troubleshooting recorder defaults on
+        return p(c).getBoolean(key, !TRANSLUCENT.equals(key) && !TAP_RECORD.equals(key));
     }
 
     static void set(Context c, String key, boolean on) {
