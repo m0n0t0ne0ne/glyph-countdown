@@ -5,6 +5,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.SystemClock;
 
 /**
@@ -17,6 +19,10 @@ import android.os.SystemClock;
  * acceleration" sensor is filtered and can smooth such a short jolt away), measures each reading
  * against a quick-moving baseline rather than a slow gravity estimate, and accepts a smaller jolt
  * while the phone lies flat, where the background is calm and little else jolts it.
+ *
+ * <p>Readings arrive hundreds of times a second and a tap on a table lasts a few milliseconds, so
+ * they are handled on a thread of their own, away from the main thread (which draws the time's-up
+ * animation), and timed by when each was measured rather than when it was delivered.
  */
 final class BackTapDetector implements SensorEventListener {
     interface Listener { void onDoubleTap(); }
@@ -35,6 +41,7 @@ final class BackTapDetector implements SensorEventListener {
     private final SensorManager sensors;
     private final Listener listener;
     private boolean running;
+    private HandlerThread thread;
     private final Core core = new Core();
 
     BackTapDetector(Context c, Listener listener) {
@@ -47,17 +54,23 @@ final class BackTapDetector implements SensorEventListener {
         Sensor s = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (s == null) return;
         core.reset(SystemClock.elapsedRealtime());
-        sensors.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST);
+        thread = new HandlerThread("back-tap", android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
+        thread.start();
+        sensors.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST, new Handler(thread.getLooper()));
         running = true;
     }
 
     void stop() {
         if (running) sensors.unregisterListener(this);
+        if (thread != null) thread.quitSafely();
+        thread = null;
         running = false;
     }
 
+    /** On the back-tap thread. The listener is called from here too. */
     @Override public void onSensorChanged(SensorEvent e) {
-        if (core.accel(SystemClock.elapsedRealtime(), e.values[0], e.values[1], e.values[2])) {
+        long measuredAt = e.timestamp / 1_000_000;   // ns since boot, the same clock as elapsedRealtime
+        if (core.accel(measuredAt, e.values[0], e.values[1], e.values[2])) {
             listener.onDoubleTap();
         }
     }
