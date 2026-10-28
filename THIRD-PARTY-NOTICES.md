@@ -7,8 +7,8 @@ These components keep their own licences.
 
 | Component | Where | Licence |
 |---|---|---|
-| **Doto** font, © The Doto Project Authors | `app/assets/fonts/Doto.ttf` | SIL Open Font License 1.1 ([text](app/assets/fonts/OFL-Doto.txt)) |
-| **Space Mono** font, © The Space Mono Project Authors | `app/assets/fonts/SpaceMono-*.ttf` | SIL Open Font License 1.1 ([text](app/assets/fonts/OFL-SpaceMono.txt)) |
+| **Doto** font, © The Doto Project Authors | `app/assets/fonts/Doto.ttf`; `docs/assets/doto-black.woff2` (website, subset) | SIL Open Font License 1.1 ([text](app/assets/fonts/OFL-Doto.txt)) |
+| **Space Mono** font, © The Space Mono Project Authors | `app/assets/fonts/SpaceMono-*.ttf`; `docs/assets/spacemono-*.woff2` (website, subset) | SIL Open Font License 1.1 ([text](app/assets/fonts/OFL-SpaceMono.txt)) |
 
 Both fonts come unmodified from [google/fonts](https://github.com/google/fonts).
 
