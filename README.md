@@ -35,7 +35,7 @@
 - **Flip to start:** lay the phone face down with the app open. Always on.
 - **Countdown styles:** keep the draining ring, or pick one of ten, each with a live preview: Pie (numbers cut out of it), Iris, Tide, Spokes, Ticks, Orbit, Big, Spiral, Radar and Rings.
 - **Lit only where you can see it:** no pocket mode to set. The phone works out where it is from its motion and proximity sensors.
-  - **Lit:** face down on a table (even with the app open), in your hand with the screen off (even with your palm over the screen), and through the whole alarm, with no dark gap as you lay it down or pick it up, however loud or buzzing.
+  - **Lit:** face down on a table (even with the app open), in your hand with the screen off (even with your palm over the screen), and through the whole alarm, however loud or buzzing. There's no dark gap as you lay it down or pick it up.
   - **Dark:** while you use the screen, in a pocket or bag (sitting or walking), and face up on a table. A table is the only place a phone lies flat and perfectly still, so a pocket is never mistaken for one.
   - **Only when screen is off** (on by default) can be switched off to keep the matrix lit while you use the screen.
 - **Time's up page:** everything that happens when the timer ends, with a pinned preview that plays your choices with the real sound.
