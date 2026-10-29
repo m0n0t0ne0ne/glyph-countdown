@@ -20,6 +20,7 @@ final class Placement {
     private static final double DOWN_XY = 0.9;       // face-down: within about 5° of flat (it rests on its screen)
     private static final double UP_XY = 1.5;         // face-up: about 9°, the camera bump tilts it a little
     private static final double FLAT_Z = 9.0;
+    private static final double FACING_DOWN_Z = 4.0;   // screen facing down, within about 65° (table, palm)
     private static final double STILL_WOBBLE = 0.04, MOVING_WOBBLE = 0.09;  // m/s², quick jitter
     private static final double STILL_DRIFT = 0.05, MOVING_DRIFT = 0.12;    // m/s², slow change of angle
     private static final long WINDOW_MS = 3000;
@@ -153,6 +154,7 @@ final class Placement {
     }
 
     private int raw() {
+        double facing = 0;   // gravity through the screen: about -9.8 face down, 0 upright, +9.8 face up
         if (count > 0) {
             int i = (head - 1 + N) % N;
             double ax = Math.abs(gx[i]), ay = Math.abs(gy[i]), z = gz[i];
@@ -160,10 +162,18 @@ final class Placement {
                 int m = Math.min(RING_AVERAGE, count);
                 ax = Math.abs(recentMean(rx, m)); ay = Math.abs(recentMean(ry, m)); z = recentMean(rz, m);
             }
+            facing = z;
             if (still && z < -FLAT_Z && ax < DOWN_XY && ay < DOWN_XY) return TABLE_DOWN;
             if (still && z > FLAT_Z && ax < UP_XY && ay < UP_XY) return TABLE_UP;
         }
-        if (near) return COVERED;
+        if (near) {
+            // Covered with the screen facing down: laid on a table but not yet proven still, or
+            // held with your palm over the screen. A phone goes into a pocket upright, so it's
+            // already dark by then; if you sit down and it lies flat, it stays dark. So facing
+            // down, the matrix keeps doing what it was, instead of going dark for a few seconds.
+            if (facing < -FACING_DOWN_Z) return lights(state) ? OPEN : COVERED;
+            return COVERED;
+        }
         return OPEN;
     }
 
