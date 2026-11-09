@@ -43,6 +43,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     private TextView primary, hint, chipText, soundValue;
     private View soundRowView;
     private View chipDot;
+    private ZeroButton zero;
     private SensorManager sensors;
     private Sensor gravity;
     private long faceDownSince;
@@ -193,7 +194,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
         col.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1)); // spacer
 
-        // reset + start
+        // reset + start + zero
         LinearLayout controls = new LinearLayout(this);
         controls.setGravity(Gravity.CENTER);
         ResetButton reset = new ResetButton(this);
@@ -210,9 +211,18 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         primary.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { onPrimary(); }
         });
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(px(220), px(56));
-        pl.leftMargin = px(16);
+        int primaryW = Math.min(px(190), screenW - px(48) - px(56 + 12 + 12 + 56));
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(primaryW, px(56));
+        pl.leftMargin = px(12);
         controls.addView(primary, pl);
+        zero = new ZeroButton(this);
+        zero.setContentDescription("Zero out timer");
+        zero.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { onZero(); }
+        });
+        LinearLayout.LayoutParams zl = new LinearLayout.LayoutParams(px(56), px(56));
+        zl.leftMargin = px(12);
+        controls.addView(zero, zl);
         col.addView(controls, new LinearLayout.LayoutParams(-1, -2));
 
         hint = text("Flip face-down to start on the Glyph Matrix", 12, GREY, Fonts.mono(this));
@@ -232,6 +242,17 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
             case TimerState.PAUSE: TimerService.send(this, TimerService.ACTION_RESUME); break;
             default: TimerService.send(this, TimerService.ACTION_RESET); break;
         }
+    }
+
+    /** Sets the dial to 00:00:00. Only while setting; a running timer has Reset and Pause. */
+    private void onZero() {
+        if (st.mode != TimerState.SET || st.setSeconds() <= 0) return;
+        st.set(TimerState.UNIT_H, 0);
+        st.set(TimerState.UNIT_M, 0);
+        st.set(TimerState.UNIT_S, 0);
+        st.save(this);
+        zero.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
+        refresh();
     }
 
     private void startTimer(boolean flipped) {
@@ -276,8 +297,11 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         String label = setting ? "START" : mode == TimerState.RUN ? "PAUSE" : mode == TimerState.PAUSE ? "RESUME" : "DISMISS";
         primary.setText(label);
         boolean done = mode == TimerState.DONE;
-        primary.setBackground(pill(done ? RED : WHITE, 0));
-        primary.setTextColor(done ? 0xFFFFFFFF : BLACK);
+        boolean empty = setting && st.setSeconds() <= 0;
+        primary.setBackground(empty ? pill(Color.TRANSPARENT, BORDER) : pill(done ? RED : WHITE, 0));
+        primary.setTextColor(empty ? GREY : done ? 0xFFFFFFFF : BLACK);
+        zero.setEnabled(setting && !empty);
+        hint.setText(empty ? "Drag the dial to set a time" : "Flip face-down to start on the Glyph Matrix");
         hint.setVisibility(setting ? View.VISIBLE : View.INVISIBLE);
         String tu = Prefs.anim(this) + " · " + Sounds.selectedName(this);
         soundValue.setText(tu);
@@ -411,6 +435,41 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
             c.drawArc(oval, -50, 100, false, p);
             oval.set(9.5f * u, 5.5f * u, 21.5f * u, 18.5f * u);
             c.drawArc(oval, -50, 100, false, p);
+        }
+    }
+
+    /** Round outlined button reading "00" in the dot font: zeroes the dial. Dims when there's nothing to clear. */
+    static class ZeroButton extends View {
+        private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        ZeroButton(Context c) {
+            super(c);
+            float d = c.getResources().getDisplayMetrics().density;
+            ring.setStyle(Paint.Style.STROKE);
+            ring.setStrokeWidth(d);
+            label.setTypeface(Fonts.doto(c));
+            label.setTextAlign(Paint.Align.CENTER);
+            label.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 20, c.getResources().getDisplayMetrics()));
+            setClickable(true);
+            setFocusable(true);
+        }
+
+        @Override
+        public void setEnabled(boolean on) {
+            super.setEnabled(on);
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            float w = getWidth(), h = getHeight();
+            boolean on = isEnabled();
+            ring.setColor(on ? RING : BORDER);
+            label.setColor(on ? WHITE : DARK);
+            c.drawCircle(w / 2, h / 2, Math.min(w, h) / 2 - ring.getStrokeWidth(), ring);
+            Paint.FontMetrics fm = label.getFontMetrics();
+            c.drawText("00", w / 2, h / 2 - (fm.ascent + fm.descent) / 2, label);
         }
     }
 

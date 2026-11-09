@@ -23,7 +23,7 @@
 
 ## How it works
 
-1. **Set the time:** drag the dot round the ring of ticks, with a light haptic tick at each step. Hours, minutes or seconds, up to 23 h 59 min 59 s.
+1. **Set the time:** drag the dot round the ring of ticks, with a light haptic tick at each step. Hours, minutes or seconds, up to 23 h 59 min 59 s. Tap **00** beside Start to clear the dial back to 00:00:00.
 2. **Flip it face down:** with the app open, lay the phone face down and the timer starts. The matrix lights at once, even with the screen still on.
 3. **Watch the back:** the time left sits inside a ring that drains clockwise. Close the app and it keeps going, with a live notification (Pause, Resume, Reset).
 4. **Time's up:** the matrix plays your animation in step with your alarm sound, at alarm volume, for up to 3 minutes.
