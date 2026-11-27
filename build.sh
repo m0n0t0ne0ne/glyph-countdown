@@ -19,9 +19,10 @@ KEYSTORE="${KEYSTORE:-$ROOT/release.jks}"
 rm -rf "$OUT" && mkdir -p "$OUT/classes"
 
 echo "== javac"
-find "$APP/src" -name '*.java' > "$OUT/sources.txt"
-javac -nowarn -encoding UTF-8 -source 8 -target 8 -Xlint:-options \
-  -bootclasspath "$ANDROID_JAR" -cp "$GLYPH_JAR" -d "$OUT/classes" @"$OUT/sources.txt"
+# Relative paths: in Git Bash on Windows, javac can't read /c/... paths inside an @file
+(cd "$ROOT" && find app/src -name '*.java') > "$OUT/sources.txt"
+(cd "$ROOT" && javac -nowarn -encoding UTF-8 -source 8 -target 8 -Xlint:-options \
+  -bootclasspath "$ANDROID_JAR" -cp "$GLYPH_JAR" -d "$OUT/classes" @"$OUT/sources.txt")
 
 echo "== dx"
 java -cp "$DEPS/tools/dx" com.android.dx.command.Main --dex --min-sdk-version=26 \
