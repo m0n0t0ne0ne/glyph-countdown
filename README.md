@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/design/timer-and-glyph-matrix.png" width="400" alt="The timer screen with its tick-ring dial, next to the back of the phone showing the countdown on the Glyph Matrix">
+  <img src="docs/design/timer-screen.png" width="620" alt="The Parallax timer screen three ways: setting 1 h 17 min with the face as the dial, typing 7800 on the keypad (rolled over to 1 h 18 min), and counting down">
   <img src="docs/design/countdown-styles.gif" width="420" alt="Ten countdown styles running together on the Glyph Matrix">
 </p>
 
