@@ -9,3 +9,6 @@ deps/
 
 # Nothing's SDK may not be redistributed; setup-deps.sh downloads it
 *.aar
+
+# personal notes for Claude Code — kept out of the public repo
+CLAUDE.local.md
