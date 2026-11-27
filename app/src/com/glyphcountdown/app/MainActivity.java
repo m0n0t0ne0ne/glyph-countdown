@@ -162,16 +162,19 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         interp = text("", 12, WHITE, Fonts.mono(this));
         interp.setLetterSpacing(0.08f);
         interp.setGravity(Gravity.CENTER);
+        interp.setSingleLine(true);
+        interp.setEllipsize(TextUtils.TruncateAt.END);
         interp.setVisibility(View.GONE);
         col.addView(interp, new LinearLayout.LayoutParams(-1, px(32)));
 
         // one row of chips: face, alert, settings
         chipRow = new LinearLayout(this);
         chipRow.setGravity(Gravity.CENTER_VERTICAL);
-        faceLabel = chip(chipRow, new FaceIcon(this), new View.OnClickListener() {
+        // the face name is short, so its chip fits its label; the alert chip takes the rest for the sound's name
+        faceLabel = chip(chipRow, new FaceIcon(this), false, new View.OnClickListener() {
             @Override public void onClick(View v) { startActivity(new Intent(MainActivity.this, CountdownStyleActivity.class)); }
         });
-        alertLabel = chip(chipRow, new BellIcon(this), new View.OnClickListener() {
+        alertLabel = chip(chipRow, new BellIcon(this), true, new View.OnClickListener() {
             @Override public void onClick(View v) { startActivity(new Intent(MainActivity.this, TimesUpActivity.class)); }
         });
         GearIcon gear = new GearIcon(this);
@@ -223,6 +226,8 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
         hint = text("", 12, SUB, Fonts.mono(this));
         hint.setGravity(Gravity.CENTER);
+        hint.setSingleLine(true); // a wrapped hint would push the buttons up
+        hint.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(-1, -2);
         hl.topMargin = px(16);
         col.addView(hint, hl);
@@ -296,7 +301,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     }
 
     /** A 48 dp chip with an icon, a label and a ›; returns the label so it can be updated. */
-    private TextView chip(LinearLayout row, View icon, View.OnClickListener click) {
+    private TextView chip(LinearLayout row, View icon, boolean grow, View.OnClickListener click) {
         LinearLayout c = new LinearLayout(this);
         c.setGravity(Gravity.CENTER_VERTICAL);
         c.setPadding(px(16), 0, px(14), 0);
@@ -309,11 +314,12 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         label.setLetterSpacing(0.12f);
         label.setSingleLine(true);
         label.setEllipsize(TextUtils.TruncateAt.END);
-        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(0, -2, 1);
+        LinearLayout.LayoutParams ll = grow ? new LinearLayout.LayoutParams(0, -2, 1) : new LinearLayout.LayoutParams(-2, -2);
         ll.leftMargin = px(8);
+        ll.rightMargin = px(8);
         c.addView(label, ll);
         c.addView(text("›", 18, SUB, Fonts.mono(this)));
-        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -1, 1);
+        LinearLayout.LayoutParams cl = grow ? new LinearLayout.LayoutParams(0, -1, 1) : new LinearLayout.LayoutParams(-2, -1);
         if (row.getChildCount() > 0) cl.leftMargin = px(8);
         row.addView(c, cl);
         return label;
@@ -465,7 +471,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
             int mIn = Integer.parseInt(r.substring(2, 4)), sIn = Integer.parseInt(r.substring(4, 6));
             long h = total / 3600, m = total % 3600 / 60, s = total % 60;
             String line;
-            if (typed.isEmpty()) line = "Type digits; they fill in from the right";
+            if (typed.isEmpty()) line = "Digits fill in from the right";
             else if (tooBig) line = "MAX IS 23:59:59";
             else if (mIn > 59 || sIn > 59) line = (mIn > 59 ? mIn + " MIN" : sIn + " SEC") + " ROLLS OVER → " + h + " HR " + m + " MIN " + s + " SEC";
             else line = "= " + h + " HR " + m + " MIN " + s + " SEC";
@@ -496,7 +502,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         reset.invalidate();
         if (setting) hint.setText(empty ? "Drag the face, or tap a number to type"
                 : "Tap " + new String[]{"HR", "MIN", "SEC"}[dial.getUnit()] + " again to type, or flip to start");
-        else hint.setText("Flip face-down to show it on the Glyph Matrix");
+        else hint.setText("Flip face-down to show it on the back");
 
         dial.invalidate();
         handler.removeCallbacks(frame);
