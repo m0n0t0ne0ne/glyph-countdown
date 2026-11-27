@@ -15,6 +15,9 @@
 #     (Nothing's licence lets you use the SDK in your own app but not redistribute it,
 #      so it is downloaded here from Nothing's own repository, never committed to this one.)
 set -euo pipefail
+# Git Bash on Windows rewrites arguments that start with / into Windows paths, which breaks
+# the sparse-checkout patterns below; turn that off (no effect on Linux or macOS).
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 DEPS="${DEPS:-$ROOT/deps}"
 mkdir -p "$DEPS" && cd "$DEPS"
