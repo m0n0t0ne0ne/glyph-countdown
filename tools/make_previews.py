@@ -1,13 +1,14 @@
 """Draws the widget picker previews (idle state, 25:00) in light and dark.
-Geometry mirrors WidgetRenderer.java. Run from the repository root: python3 tools/make_previews.py"""
+Geometry mirrors WidgetRenderer.java (design units: 2×2 255 square, 2×1 255 × 120, 1×1 120 round).
+Run from the repository root: python3 tools/make_previews.py"""
 import math
 from PIL import Image, ImageDraw, ImageFont
 
 THEMES = {
-    "dark":  dict(card=(0x18, 0x1C, 0x1E), fg=(0xEE, 0xF1, 0xF3), grey=(0x8A, 0x8F, 0x93),
-                  unlit=(0x3A, 0x3F, 0x42), ring=(0x4A, 0x50, 0x54)),
-    "light": dict(card=(0xF2, 0xF3, 0xF4), fg=(0x18, 0x1C, 0x1E), grey=(0x5E, 0x64, 0x68),
-                  unlit=(0xCD, 0xD1, 0xD4), ring=(0xB8, 0xBD, 0xC1)),
+    "dark":  dict(card=(0x18, 0x1C, 0x1E), fg=(0xEE, 0xF1, 0xF3), sub=(0xAE, 0xB4, 0xB9), dim=(0x8E, 0x95, 0x9A),
+                  faint=(0x3E, 0x45, 0x4A), line=(0x59, 0x60, 0x66), btn=(0xEE, 0xF1, 0xF3), btnfg=(0x18, 0x1C, 0x1E)),
+    "light": dict(card=(0xF2, 0xF3, 0xF4), fg=(0x18, 0x1C, 0x1E), sub=(0x4F, 0x55, 0x5A), dim=(0x5E, 0x64, 0x68),
+                  faint=(0xC4, 0xC9, 0xCD), line=(0x9A, 0xA0, 0xA5), btn=(0x18, 0x1C, 0x1E), btnfg=(0xF2, 0xF3, 0xF4)),
 }
 S = 2  # supersampling
 
@@ -21,61 +22,94 @@ def doto(size):
     return f
 
 
-def mono(size):
-    return ImageFont.truetype("app/assets/fonts/SpaceMono-Regular.ttf", int(size))
+def mono(size, bold=False):
+    return ImageFont.truetype("app/assets/fonts/SpaceMono-%s.ttf" % ("Bold" if bold else "Regular"), int(size))
 
 
-def ring(d, cx, cy, outer, n, maj, mn, st, color):
-    every = n // 12
-    for i in range(n):
-        ln = maj if i % every == 0 else mn
-        a = 2 * math.pi * i / n
-        sx, sy = math.sin(a), -math.cos(a)
-        d.line([cx + sx * outer, cy + sy * outer, cx + sx * (outer - ln), cy + sy * (outer - ln)],
-               fill=color, width=max(2, int(st)))
+def rows3(d, t, x, y, size, gap, usize, ugap):
+    vals, units = ["00", "25", "00"], ["HR", "MIN", "SEC"]
+    cols = [t["faint"], t["fg"], t["dim"]]
+    ucols = [t["faint"], t["sub"], t["sub"]]
+    f, uf = doto(size), mono(usize)
+    dw = d.textlength("00", font=f)
+    row = size * 0.92
+    for i in range(3):
+        base = y + row * (i + 1) + gap * i - size * 0.08
+        d.text((x, base), vals[i], font=f, fill=cols[i], anchor="ls")
+        d.text((x + dw + ugap, base - size * 0.06), units[i], font=uf, fill=ucols[i], anchor="ls")
 
 
-def play(d, cx, cy, r, bg, fg):
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=bg)
-    s = r / 3
-    d.polygon([(cx - s * .7, cy - s), (cx - s * .7, cy + s), (cx + s, cy)], fill=fg)
+def pills(d, t, x, y, w, ph, gap, tgap):
+    tw = (w - 2 * tgap) / 3
+    for p in range(10):
+        py = y + p * (ph + gap)
+        # all thirds lit in the idle state; round the pill's two ends
+        d.rounded_rectangle([x, py, x + w, py + ph], radius=ph / 2, fill=t["fg"])
+        for j in (1, 2):
+            gx = x + j * tw + (j - 1) * tgap
+            d.rectangle([gx, py, gx + tgap, py + ph], fill=t["card"])
+
+
+def play(d, cx, cy, r, color):
+    d.polygon([(cx - r * .55, cy - r * .8), (cx - r * .55, cy + r * .8), (cx + r * .8, cy)], fill=color)
 
 
 def make(theme, suffix):
     t = THEMES[theme]
-    # 1×1 circle
-    k = 3; w = h = 240
-    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im); c = w * S / 2
-    d.ellipse([0, 0, w * S - 1, h * S - 1], fill=t["card"])
-    ring(d, c, c, (w / 2 - 5 * k) * S, 30, 8 * k * S, 6 * k * S, 2 * k * S, t["unlit"])
-    d.text((c, c - 3 * k * S), "25", font=doto(24 * k * S), fill=t["fg"], anchor="mm")
-    d.text((c, c + 14 * k * S), "MIN", font=mono(9 * k * S), fill=t["grey"], anchor="mm")
-    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_1.png")
-    # 2×1 pill
-    k = 3; w, h = 510, 240
+    # 2×2
+    w = h = 510; k = w / 255 * S
     im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=h * S / 2, fill=t["card"])
-    rw = w * .4; rr = min(rw, h) * .4; cxu = h / 2 if h / 2 + rr <= rw else rw / 2
-    cx, cy, rrs = cxu * S, h / 2 * S, rr * S
-    ring(d, cx, cy, rrs, 30, 7 * k * S, 5 * k * S, 2 * k * S, t["unlit"])
-    play(d, cx, cy, 18 * k * S, t["fg"], t["card"])
-    x0 = max(rw * S, cx + rrs + 8 * k * S)
-    d.text((x0, cy - k * S), "25:00", font=doto(26 * k * S), fill=t["fg"], anchor="ls")
-    d.text((x0, cy + 16 * k * S), "TAP TO START", font=mono(9 * k * S), fill=t["grey"], anchor="ls")
-    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_2.png")
-    # 2×2 rounded square
-    k = 3; w = h = 510
-    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im); c = w * S / 2
-    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=w * S * 0.19, fill=t["card"])
-    ring(d, c, c, (w / 2 - 6 * k) * S, 60, 12 * k * S, 8 * k * S, 2 * k * S, t["unlit"])
-    d.text((c, c - 20 * k * S), "25:00", font=doto(30 * k * S), fill=t["fg"], anchor="mm")
-    d.text((c, c + 2 * k * S), "TAP TO START", font=mono(9 * k * S), fill=t["grey"], anchor="mm")
-    by = h * .70 * S; br = 16 * k * S; x1 = w * .375 * S
-    d.ellipse([x1 - br, by - br, x1 + br, by + br], outline=t["ring"], width=max(2, k * S))
-    r = 6 * k * S
-    d.arc([x1 - r, by - r, x1 + r, by + r], 200, 130, fill=t["fg"], width=2 * k * S)
-    play(d, w * .625 * S, by, br, t["fg"], t["card"])
+    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=48 * k, fill=t["card"])
+    rows3(d, t, 26 * k, 24 * k, 50 * k, 4 * k, 12 * k, 10 * k)
+    pills(d, t, w * S - 26 * k - 72 * k, 24 * k, 72 * k, 11 * k, 4 * k, 2 * k)
+    by, bh = h * S - 66 * k, 46 * k
+    cx = 22 * k + bh / 2
+    d.ellipse([22 * k + k, by + k, 22 * k + bh - k, by + bh - k], outline=t["line"], width=int(2 * k))
+    r = 7 * k
+    d.arc([cx - r, by + bh / 2 - r, cx + r, by + bh / 2 + r], 200, 130, fill=t["fg"], width=int(2 * k))
+    bx = 22 * k + bh + 10 * k
+    d.rounded_rectangle([bx, by, w * S - 22 * k, by + bh], radius=bh / 2, fill=t["btn"])
+    f = mono(13 * k, True)
+    tw = d.textlength("START", font=f) + 13 * k * 0.12 * 4
+    total = 16 * k + 8 * k + tw
+    ix = (bx + w * S - 22 * k) / 2 - total / 2 + 8 * k
+    play(d, ix, by + bh / 2, 8 * k, t["btnfg"])
+    d.text((ix + 8 * k + 8 * k, by + bh / 2), "START", font=f, fill=t["btnfg"], anchor="lm")
     im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_4.png")
+    # 2×1
+    w, h = 510, 240; k = min(h / 120, w / 255) * S
+    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=36 * k, fill=t["card"])
+    top = (h * S - 86 * k) / 2
+    rows3(d, t, 22 * k, top, 28 * k, 2 * k, 10 * k, 6 * k)
+    bw, bh = 72 * k, min(80 * k, h * S - 32 * k)
+    bx = w * S - 20 * k - bw
+    pills(d, t, bx - 13 * k - 50 * k, top, 50 * k, 6 * k, 3 * k, 2 * k)
+    by = (h * S - bh) / 2
+    d.rounded_rectangle([bx, by, bx + bw, by + bh], radius=24 * k, fill=t["btn"])
+    play(d, bx + bw / 2, by + bh / 2 - 8 * k, 10 * k, t["btnfg"])
+    d.text((bx + bw / 2, by + bh / 2 + 10 * k), "START", font=mono(10 * k, True), fill=t["btnfg"], anchor="mt")
+    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_2.png")
+    # 1×1
+    w = h = 240; u = w / 120 * S; c = w * S / 2
+    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.ellipse([0, 0, w * S - 1, h * S - 1], fill=t["card"])
+    R, st = 51 * u, 8 * u
+    span = (30 - 4) / 3
+    for kk in range(30):
+        p, j = divmod(kk, 3)
+        a0 = p * 36 + 3 + j * (span + 2)
+        d.arc([c - R, c - R, c + R, c + R], a0 - 90, a0 - 90 + span, fill=t["fg"], width=int(st))
+    f, uf = doto(24 * u), mono(9 * u)
+    dw = d.textlength("00", font=f); uw = d.textlength("MIN", font=uf)
+    x0 = c - (dw + 4 * u + uw) / 2
+    y0 = c - (22 * u * 2 + 3 * u + 13 * u) / 2
+    for i, (v, un, col) in enumerate([("25", "MIN", t["fg"]), ("00", "SEC", t["dim"])]):
+        base = y0 + 22 * u * (i + 1) + 3 * u * i - 2 * u
+        d.text((x0, base), v, font=f, fill=col, anchor="ls")
+        d.text((x0 + dw + 4 * u, base - u), un, font=uf, fill=t["sub"], anchor="ls")
+    play(d, c, y0 + 22 * u * 2 + 3 * u + 8 * u, 5 * u, t["sub"])
+    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_1.png")
 
 
 make("dark", "")

@@ -59,9 +59,9 @@ public class ApkBuilder {
         for (String id : new String[]{"w_image_light", "w_image_dark", "w_toggle", "w_reset", "w_open", "w_open2", "w_open3", "w_open4"}) {
             pkg.getOrCreate("", "id", id).setValueAsBoolean(false);
         }
-        String[][] widgets = {{"1", "1x1", "Timer dial with minutes left. Tap to start or pause."},
-                {"2", "2x1", "Time left with a play/pause button."},
-                {"4", "2x2", "Full tick ring with reset and play/pause."}};
+        String[][] widgets = {{"1", "1x1", "Time left inside a ring of thirds. Tap to start or pause."},
+                {"2", "2x1", "Hours, minutes and seconds with a start/pause button."},
+                {"4", "2x2", "Hours, minutes, seconds and pills in thirds, with reset and start/pause."}};
         for (String[] wd : widgets) {
             for (String v : new String[]{"widget_prev_", "widget_prev_light_"}) {
                 pkg.getOrCreate("-nodpi", "drawable", v + wd[0])

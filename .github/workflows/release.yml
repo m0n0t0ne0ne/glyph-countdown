@@ -102,13 +102,13 @@ jobs:
 
       - name: Prepare the release
         run: |
-          apk="GlyphCountdown-$VERSION.apk"
-          cp out/GlyphCountdown.apk "$apk"
+          apk="Parallax-$VERSION.apk"
+          cp out/Parallax.apk "$apk"
           sha=$(sha256sum "$apk" | cut -d' ' -f1)
           cert=$(java -cp deps/tools/apksig com.android.apksigner.ApkSignerTool verify --print-certs "$apk" \
                  | grep -m1 'certificate SHA-256 digest' | awk '{print $NF}')
           notes="docs/release-notes/$TAG.md"
-          { if [ -f "$notes" ]; then cat "$notes"; else echo "Glyph Countdown $VERSION"; fi
+          { if [ -f "$notes" ]; then cat "$notes"; else echo "Parallax $VERSION"; fi
             echo
             echo "SHA-256 (APK): \`$sha\`"
             echo
@@ -121,4 +121,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "Glyph Countdown $VERSION" --notes-file release-notes.md
+            --title "Parallax $VERSION" --notes-file release-notes.md

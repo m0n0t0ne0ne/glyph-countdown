@@ -3,6 +3,7 @@ package com.glyphcountdown.app;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -18,32 +19,49 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+/**
+ * The timer screen. The glyph face (a live preview of the Glyph Matrix) is the dial. Below it one
+ * tall chip shows HR / MIN / SEC: tap a unit to pick it for the dial, tap it again to type a time.
+ * Typing works like Google Clock: digits fill in from the right (23 → 23 s, 2315 → 23 min 15 s,
+ * 7800 → 78 min, rolled over to 1 h 18 min). One row of chips opens the face picker, the time's-up
+ * alert and Settings. Reset, Start and 00 sit at the bottom, where the thumb is.
+ */
 public class MainActivity extends Activity implements TimerState.Listener, DialView.Listener, SensorEventListener {
     // set from Palette in onCreate: BLACK is the background role, WHITE the foreground role
-    private static int BLACK, WHITE, GREY, LIGHT, DARK, BORDER, CARD, RING;
+    private static int BLACK, WHITE, GREY, BORDER;
+    private int SUB, FAINT, CHIP, KEY, SHEET, OFF;
     private static final int RED = 0xFFE8202A;
     private boolean appliedDark;
 
     private final TimerState st = TimerState.get();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private float dp;
+    private int screenW;
 
     private DialView dial;
-    private TextView[] unitButtons = new TextView[3];
-    private TextView primary, hint, chipText, soundValue;
-    private View soundRowView;
-    private View chipDot;
-    private ZeroButton zero;
+    private TextView status, interp, primary, zero, hint, faceLabel, alertLabel;
+    private LinearLayout bigChip, chipRow, controls, keypad;
+    private final TextView[] segDigits = new TextView[3];
+    private final TextView[] segUnits = new TextView[3];
+    private final LinearLayout[] segs = new LinearLayout[3];
+    private TextView setKey;
+    private ResetButton reset;
+    private int bottomInset;
+
+    // typing: digits fill in from the right into HH MM SS, at most six
+    private boolean typing;
+    private String typed = "";
+
     private SensorManager sensors;
     private Sensor gravity;
     private long faceDownSince;
@@ -51,8 +69,9 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
     private final Runnable frame = new Runnable() {
         @Override public void run() {
-            dial.invalidate(); // keeps the tick ring draining smoothly
-            if (st.mode == TimerState.RUN) handler.postDelayed(this, 100);
+            showTime();
+            dial.invalidate(); // keeps the ring and the face draining smoothly
+            if (st.mode == TimerState.RUN || st.mode == TimerState.DONE) handler.postDelayed(this, 100);
         }
     };
 
@@ -61,10 +80,16 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         super.onCreate(saved);
         Palette pal = Palette.of(this);
         appliedDark = pal.dark;
-        BLACK = pal.bg; WHITE = pal.fg; GREY = pal.grey; LIGHT = pal.light; DARK = pal.dim;
-        BORDER = pal.border; CARD = pal.card; RING = pal.ring;
+        BLACK = pal.bg; WHITE = pal.fg; GREY = pal.grey; BORDER = pal.border;
+        SUB = pal.dark ? 0xFFA3A9AE : 0xFF4F555A;
+        FAINT = pal.dark ? 0xFF666D72 : 0xFF868C91;
+        CHIP = pal.dark ? 0xFF0B0D0E : 0xFFFFFFFF;
+        KEY = pal.dark ? 0xFF1E2225 : 0xFFFFFFFF;
+        SHEET = pal.dark ? 0xFF121517 : 0xFFE6E8EA;
+        OFF = pal.dark ? 0xFF4A5055 : 0xFFB8BDC1;
         Palette.applyBars(this, pal);
         dp = getResources().getDisplayMetrics().density;
+        screenW = getResources().getDisplayMetrics().widthPixels;
         st.load(this);
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
@@ -82,122 +107,92 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(col, new FrameLayout.LayoutParams(-1, -1));
-        root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
-            @Override public WindowInsets onApplyWindowInsets(View v, WindowInsets in) {
-                android.graphics.Insets b = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-                col.setPadding(px(24) + b.left, px(20) + b.top, px(24) + b.right, px(28) + b.bottom);
-                return WindowInsets.CONSUMED;
-            }
-        });
 
-        // header: "Timer" + Glyph Matrix chip
-        LinearLayout header = new LinearLayout(this);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        // header: just the title
         TextView title = text("Timer", 32, WHITE, Fonts.doto(this));
         title.setLetterSpacing(0.03f);
-        header.addView(title, new LinearLayout.LayoutParams(0, px(44), 1));
-        LinearLayout chip = new LinearLayout(this);
-        chip.setGravity(Gravity.CENTER_VERTICAL);
-        chip.setPadding(px(12), px(6), px(12), px(6));
-        chip.setBackground(pill(Color.TRANSPARENT, BORDER));
-        chipDot = new View(this);
-        chipDot.setBackground(circle(DARK));
-        chip.addView(chipDot, new LinearLayout.LayoutParams(px(8), px(8)));
-        chipText = text("GLYPH MATRIX", 11, LIGHT, Fonts.mono(this));
-        chipText.setLetterSpacing(0.14f);
-        LinearLayout.LayoutParams ctl = new LinearLayout.LayoutParams(-2, -2);
-        ctl.leftMargin = px(8);
-        chip.addView(chipText, ctl);
-        header.addView(chip);
-        GearIcon gear = new GearIcon(this);
-        gear.setContentDescription("Settings");
-        gear.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                startActivity(new android.content.Intent(MainActivity.this, SettingsActivity.class));
-            }
-        });
-        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(px(44), px(44));
-        gl.leftMargin = px(4);
-        gl.rightMargin = -px(10);
-        header.addView(gear, gl);
-        col.addView(header, new LinearLayout.LayoutParams(-1, -2));
+        col.addView(title, new LinearLayout.LayoutParams(-1, px(44)));
 
-        // dial
+        // the face is the dial
         dial = new DialView(this);
         dial.setListener(this);
-        int screenW = getResources().getDisplayMetrics().widthPixels;
-        int dialSize = Math.min(screenW - px(48), px(340));
-        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(dialSize, dialSize);
-        dl.topMargin = px(36);
+        int size = dialSize(false);
+        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(size, size);
+        dl.topMargin = px(24);
         col.addView(dial, dl);
 
-        // HRS / MIN / SEC switch
-        LinearLayout seg = new LinearLayout(this);
-        seg.setPadding(px(4), px(4), px(4), px(4));
-        seg.setBackground(pill(Color.TRANSPARENT, BORDER));
-        String[] labels = {"HRS", "MIN", "SEC"};
+        // REMAINING / PAUSED / TIME'S UP while it runs
+        status = text("", 12, SUB, Fonts.monoBold(this));
+        status.setLetterSpacing(0.2f);
+        status.setGravity(Gravity.CENTER);
+        col.addView(status, new LinearLayout.LayoutParams(-1, px(32)));
+
+        // the time: one tall chip, HR / MIN / SEC
+        bigChip = new LinearLayout(this);
+        bigChip.setPadding(px(6), px(6), px(6), px(6));
+        String[] units = {"HR", "MIN", "SEC"};
         String[] spoken = {"Hours", "Minutes", "Seconds"};
         for (int i = 0; i < 3; i++) {
             final int u = i;
-            TextView b = text(labels[i], 13, LIGHT, Fonts.monoBold(this));
-            b.setLetterSpacing(0.15f);
-            b.setGravity(Gravity.CENTER);
-            b.setContentDescription(spoken[i]);
-            b.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { onUnitPicked(u); }
+            LinearLayout s = new LinearLayout(this);
+            s.setOrientation(LinearLayout.VERTICAL);
+            s.setGravity(Gravity.CENTER);
+            s.setClickable(true);
+            s.setFocusable(true);
+            s.setContentDescription(spoken[i]);
+            s.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { onSegment(u); }
             });
-            LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(px(92), px(44));
-            if (i > 0) bl.leftMargin = px(6);
-            seg.addView(b, bl);
-            unitButtons[i] = b;
+            TextView d = text("00", 48, WHITE, Fonts.doto(this));
+            d.setGravity(Gravity.CENTER);
+            s.addView(d, new LinearLayout.LayoutParams(-2, -2));
+            TextView un = text(units[i], 12, SUB, Fonts.monoBold(this));
+            un.setLetterSpacing(0.15f);
+            LinearLayout.LayoutParams ul = new LinearLayout.LayoutParams(-2, -2);
+            ul.topMargin = px(8);
+            s.addView(un, ul);
+            LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(0, -1, 1);
+            if (i > 0) sl.leftMargin = px(4);
+            bigChip.addView(s, sl);
+            segs[i] = s; segDigits[i] = d; segUnits[i] = un;
         }
-        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(-2, -2);
-        sl.topMargin = px(32);
-        col.addView(seg, sl);
+        col.addView(bigChip, new LinearLayout.LayoutParams(-1, px(104)));
 
-        // time's up row: a shortcut to the Time's up page
-        LinearLayout soundRow = new LinearLayout(this);
-        soundRow.setGravity(Gravity.CENTER_VERTICAL);
-        soundRow.setPadding(px(18), 0, px(14), 0);
-        GradientDrawable rowBg = new GradientDrawable();
-        rowBg.setCornerRadius(px(20));
-        rowBg.setColor(CARD);
-        rowBg.setStroke(px(1), BORDER);
-        soundRow.setBackground(rowBg);
-        soundRow.setClickable(true);
-        soundRow.setFocusable(true);
-        soundRow.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                startActivity(new android.content.Intent(MainActivity.this, TimesUpActivity.class));
-            }
+        // while typing: how the digits were read
+        interp = text("", 12, WHITE, Fonts.mono(this));
+        interp.setLetterSpacing(0.08f);
+        interp.setGravity(Gravity.CENTER);
+        interp.setVisibility(View.GONE);
+        col.addView(interp, new LinearLayout.LayoutParams(-1, px(32)));
+
+        // one row of chips: face, alert, settings
+        chipRow = new LinearLayout(this);
+        chipRow.setGravity(Gravity.CENTER_VERTICAL);
+        faceLabel = chip(chipRow, new FaceIcon(this), new View.OnClickListener() {
+            @Override public void onClick(View v) { startActivity(new Intent(MainActivity.this, CountdownStyleActivity.class)); }
         });
-        soundRow.addView(new SpeakerIcon(this), new LinearLayout.LayoutParams(px(22), px(22)));
-        LinearLayout soundText = new LinearLayout(this);
-        soundText.setOrientation(LinearLayout.VERTICAL);
-        TextView soundLabel = text("TIME'S UP", 10, GREY, Fonts.mono(this));
-        soundLabel.setLetterSpacing(0.18f);
-        soundText.addView(soundLabel);
-        soundValue = text("", 15, WHITE, Fonts.monoBold(this));
-        soundValue.setSingleLine(true);
-        soundValue.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        LinearLayout.LayoutParams svl = new LinearLayout.LayoutParams(-1, -2);
-        svl.topMargin = px(4);
-        soundText.addView(soundValue, svl);
-        LinearLayout.LayoutParams stl = new LinearLayout.LayoutParams(0, -2, 1);
-        stl.leftMargin = px(14);
-        soundRow.addView(soundText, stl);
-        soundRow.addView(text("›", 22, GREY, Fonts.mono(this)));
-        soundRowView = soundRow;
-        LinearLayout.LayoutParams srl = new LinearLayout.LayoutParams(-1, px(64));
-        srl.topMargin = px(16);
-        col.addView(soundRow, srl);
+        alertLabel = chip(chipRow, new BellIcon(this), new View.OnClickListener() {
+            @Override public void onClick(View v) { startActivity(new Intent(MainActivity.this, TimesUpActivity.class)); }
+        });
+        GearIcon gear = new GearIcon(this);
+        gear.setContentDescription("Settings");
+        gear.setBackground(pill(CHIP, BORDER));
+        gear.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); }
+        });
+        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(px(48), px(48));
+        gl.leftMargin = px(8);
+        chipRow.addView(gear, gl);
+        LinearLayout.LayoutParams crl = new LinearLayout.LayoutParams(-1, px(48));
+        crl.topMargin = px(24);
+        col.addView(chipRow, crl);
 
         col.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1)); // spacer
 
         // reset + start + zero
-        LinearLayout controls = new LinearLayout(this);
+        controls = new LinearLayout(this);
         controls.setGravity(Gravity.CENTER);
-        ResetButton reset = new ResetButton(this);
+        reset = new ResetButton(this);
         reset.setContentDescription("Reset timer");
         reset.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -206,31 +201,122 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         });
         controls.addView(reset, new LinearLayout.LayoutParams(px(56), px(56)));
         primary = text("START", 15, BLACK, Fonts.monoBold(this));
-        primary.setLetterSpacing(0.2f);
+        primary.setLetterSpacing(0.25f);
         primary.setGravity(Gravity.CENTER);
         primary.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { onPrimary(); }
         });
-        int primaryW = Math.min(px(190), screenW - px(48) - px(56 + 12 + 12 + 56));
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(primaryW, px(56));
-        pl.leftMargin = px(12);
+        int primaryW = Math.min(px(190), screenW - px(48) - px(56 + 16 + 16 + 56));
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(primaryW, px(64));
+        pl.leftMargin = px(16);
         controls.addView(primary, pl);
-        zero = new ZeroButton(this);
+        zero = text("00", 15, WHITE, Fonts.monoBold(this));
+        zero.setGravity(Gravity.CENTER);
         zero.setContentDescription("Zero out timer");
         zero.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { onZero(); }
         });
         LinearLayout.LayoutParams zl = new LinearLayout.LayoutParams(px(56), px(56));
-        zl.leftMargin = px(12);
+        zl.leftMargin = px(16);
         controls.addView(zero, zl);
         col.addView(controls, new LinearLayout.LayoutParams(-1, -2));
 
-        hint = text("Flip face-down to start on the Glyph Matrix", 12, GREY, Fonts.mono(this));
+        hint = text("", 12, SUB, Fonts.mono(this));
         hint.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(-1, -2);
-        hl.topMargin = px(18);
+        hl.topMargin = px(16);
         col.addView(hint, hl);
+
+        // the keypad: slides up while typing; the big chip above is the readout
+        keypad = new LinearLayout(this);
+        keypad.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable sheet = new GradientDrawable();
+        float r = px(28);
+        sheet.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
+        sheet.setColor(SHEET);
+        sheet.setStroke(px(1), BORDER);
+        keypad.setBackground(sheet);
+        keypad.setClickable(true); // taps on the sheet's gaps don't fall through
+        String[][] keys = {{"1", "2", "3"}, {"4", "5", "6"}, {"7", "8", "9"}, {"00", "0", "DEL"}};
+        for (int row = 0; row < 4; row++) {
+            LinearLayout line = new LinearLayout(this);
+            for (int cI = 0; cI < 3; cI++) {
+                final String k = keys[row][cI];
+                View key;
+                if ("DEL".equals(k)) {
+                    DeleteIcon del = new DeleteIcon(this);
+                    del.setContentDescription("Delete");
+                    key = del;
+                } else {
+                    TextView t = text(k, 24, WHITE, Fonts.monoBold(this));
+                    t.setGravity(Gravity.CENTER);
+                    key = t;
+                }
+                key.setBackground(rounded(KEY, px(18)));
+                key.setClickable(true);
+                key.setFocusable(true);
+                key.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View v) { onKey(k); }
+                });
+                LinearLayout.LayoutParams kl = new LinearLayout.LayoutParams(0, px(52), 1);
+                if (cI > 0) kl.leftMargin = px(6);
+                line.addView(key, kl);
+            }
+            LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(-1, -2);
+            if (row > 0) ll.topMargin = px(6);
+            keypad.addView(line, ll);
+        }
+        setKey = text("CANCEL", 15, BLACK, Fonts.monoBold(this));
+        setKey.setLetterSpacing(0.2f);
+        setKey.setGravity(Gravity.CENTER);
+        setKey.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { onSet(); }
+        });
+        LinearLayout.LayoutParams skl = new LinearLayout.LayoutParams(-1, px(52));
+        skl.topMargin = px(8);
+        keypad.addView(setKey, skl);
+        keypad.setVisibility(View.GONE);
+        root.addView(keypad, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+
+        root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override public WindowInsets onApplyWindowInsets(View v, WindowInsets in) {
+                android.graphics.Insets b = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                col.setPadding(px(24) + b.left, px(20) + b.top, px(24) + b.right, px(28) + b.bottom);
+                bottomInset = b.bottom;
+                keypad.setPadding(px(24) + b.left, px(12), px(24) + b.right, px(16) + b.bottom);
+                return WindowInsets.CONSUMED;
+            }
+        });
         return root;
+    }
+
+    private int dialSize(boolean small) {
+        int s = Math.min(screenW - px(90), px(300));
+        return small ? Math.round(s * 0.8f) : s;
+    }
+
+    /** A 48 dp chip with an icon, a label and a ›; returns the label so it can be updated. */
+    private TextView chip(LinearLayout row, View icon, View.OnClickListener click) {
+        LinearLayout c = new LinearLayout(this);
+        c.setGravity(Gravity.CENTER_VERTICAL);
+        c.setPadding(px(16), 0, px(14), 0);
+        c.setBackground(pill(CHIP, BORDER));
+        c.setClickable(true);
+        c.setFocusable(true);
+        c.setOnClickListener(click);
+        c.addView(icon, new LinearLayout.LayoutParams(px(16), px(16)));
+        TextView label = text("", 12, WHITE, Fonts.monoBold(this));
+        label.setLetterSpacing(0.12f);
+        label.setSingleLine(true);
+        label.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(0, -2, 1);
+        ll.leftMargin = px(8);
+        c.addView(label, ll);
+        c.addView(text("›", 18, SUB, Fonts.mono(this)));
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -1, 1);
+        if (row.getChildCount() > 0) cl.leftMargin = px(8);
+        row.addView(c, cl);
+        return label;
     }
 
     // ---- actions ---------------------------------------------------------------------
@@ -244,7 +330,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         }
     }
 
-    /** Sets the dial to 00:00:00. Only while setting; a running timer has Reset and Pause. */
+    /** Sets the time to 00:00:00. Only while setting; a running timer has Reset and Pause. */
     private void onZero() {
         if (st.mode != TimerState.SET || st.setSeconds() <= 0) return;
         st.set(TimerState.UNIT_H, 0);
@@ -267,6 +353,64 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         TimerService.start(this, flipped);
     }
 
+    /** Tap a unit to pick it for the dial; tap the picked one again to type. While typing, a tap cancels. */
+    private void onSegment(int u) {
+        if (typing) { closeTyping(); return; }
+        if (st.mode != TimerState.SET) return;
+        if (dial.getUnit() == u) openTyping();
+        else { dial.setUnit(u); refresh(); }
+    }
+
+    private void openTyping() {
+        typing = true;
+        typed = "";
+        refresh();
+    }
+
+    private void closeTyping() {
+        typing = false;
+        typed = "";
+        refresh();
+    }
+
+    private void onKey(String k) {
+        if ("DEL".equals(k)) {
+            if (!typed.isEmpty()) typed = typed.substring(0, typed.length() - 1);
+        } else {
+            if (typed.isEmpty() && k.startsWith("0")) return; // leading zeros do nothing, as in Google Clock
+            typed = (typed + k);
+            if (typed.length() > 6) typed = typed.substring(0, 6);
+        }
+        refresh();
+    }
+
+    private void onSet() {
+        if (typed.isEmpty()) { closeTyping(); return; }
+        long total = typedSeconds();
+        if (total > 86399) { setKey.performHapticFeedback(HapticFeedbackConstants.REJECT); return; }
+        st.set(TimerState.UNIT_H, (int) (total / 3600));
+        st.set(TimerState.UNIT_M, (int) (total % 3600 / 60));
+        st.set(TimerState.UNIT_S, (int) (total % 60));
+        st.save(this);
+        setKey.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
+        closeTyping();
+    }
+
+    private String raw() { return ("000000" + typed).substring(typed.length()); }
+
+    /** The typed digits as HH MM SS, overflow rolled up (78 min = 1 h 18 min). */
+    private long typedSeconds() {
+        String r = raw();
+        return Integer.parseInt(r.substring(0, 2)) * 3600L + Integer.parseInt(r.substring(2, 4)) * 60L
+                + Integer.parseInt(r.substring(4, 6));
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (typing) { closeTyping(); return; }
+        super.onBackPressed();
+    }
+
     @Override
     public void onValueChanged(int unit, int value) {
         if (st.mode != TimerState.SET) return;
@@ -282,34 +426,118 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     }
 
     @Override
-    public void onTimerChanged() { refresh(); }
+    public void onTimerChanged() {
+        if (typing && st.mode != TimerState.SET) typing = false; // started from a widget or a flip
+        refresh();
+    }
 
     private void refresh() {
         int mode = st.mode;
         boolean setting = mode == TimerState.SET;
-        for (int i = 0; i < 3; i++) {
-            boolean sel = setting && dial.getUnit() == i;
-            unitButtons[i].setBackground(pill(sel ? WHITE : Color.TRANSPARENT, 0));
-            unitButtons[i].setTextColor(sel ? BLACK : setting ? LIGHT : DARK);
-            unitButtons[i].setSelected(sel);
-            unitButtons[i].setEnabled(setting);
-        }
-        String label = setting ? "START" : mode == TimerState.RUN ? "PAUSE" : mode == TimerState.PAUSE ? "RESUME" : "DISMISS";
-        primary.setText(label);
+        boolean running = !setting;
         boolean done = mode == TimerState.DONE;
         boolean empty = setting && st.setSeconds() <= 0;
-        primary.setBackground(empty ? pill(Color.TRANSPARENT, BORDER) : pill(done ? RED : WHITE, 0));
-        primary.setTextColor(empty ? GREY : done ? 0xFFFFFFFF : BLACK);
-        zero.setEnabled(setting && !empty);
-        hint.setText(empty ? "Drag the dial to set a time" : "Flip face-down to start on the Glyph Matrix");
-        hint.setVisibility(setting ? View.VISIBLE : View.INVISIBLE);
-        String tu = Prefs.anim(this) + " · " + Sounds.selectedName(this);
-        soundValue.setText(tu);
-        soundRowView.setContentDescription("Time's up: " + tu + ". Change");
-        chipDot.setBackground(circle(st.matrixActive && !setting ? RED : DARK));
+
+        // typing layout: smaller face, keypad up, chips and controls out of the way
+        int size = dialSize(typing);
+        LinearLayout.LayoutParams dl = (LinearLayout.LayoutParams) dial.getLayoutParams();
+        if (dl.width != size) { dl.width = size; dl.height = size; dl.topMargin = px(typing ? 8 : 24); dial.setLayoutParams(dl); }
+        keypad.setVisibility(typing ? View.VISIBLE : View.GONE);
+        interp.setVisibility(typing ? View.VISIBLE : View.GONE);
+        chipRow.setVisibility(typing ? View.GONE : View.VISIBLE);
+        controls.setVisibility(typing ? View.INVISIBLE : View.VISIBLE);
+        hint.setVisibility(typing ? View.INVISIBLE : View.VISIBLE);
+        status.setVisibility(typing ? View.GONE : View.VISIBLE);
+        bigChip.setBackground(rounded(Color.TRANSPARENT, px(32), typing ? WHITE : BORDER, typing ? 1.5f : 1f));
+        dial.setTyping(typing, typing && !typed.isEmpty() && typedSeconds() <= 86399 ? typedSeconds() : st.setSeconds());
+
+        // status line
+        status.setText(running ? (done ? "TIME'S UP" : mode == TimerState.PAUSE ? "PAUSED" : "REMAINING") : "");
+        status.setTextColor(done ? RED : SUB);
+
+        showTime();
+
+        // typing readout
+        if (typing) {
+            long total = typedSeconds();
+            boolean tooBig = total > 86399;
+            String r = raw();
+            int mIn = Integer.parseInt(r.substring(2, 4)), sIn = Integer.parseInt(r.substring(4, 6));
+            long h = total / 3600, m = total % 3600 / 60, s = total % 60;
+            String line;
+            if (typed.isEmpty()) line = "Type digits; they fill in from the right";
+            else if (tooBig) line = "MAX IS 23:59:59";
+            else if (mIn > 59 || sIn > 59) line = (mIn > 59 ? mIn + " MIN" : sIn + " SEC") + " ROLLS OVER → " + h + " HR " + m + " MIN " + s + " SEC";
+            else line = "= " + h + " HR " + m + " MIN " + s + " SEC";
+            interp.setText(line);
+            interp.setTextColor(tooBig ? RED : typed.isEmpty() ? SUB : WHITE);
+            boolean canSet = !tooBig;
+            setKey.setText(typed.isEmpty() ? "CANCEL" : "SET " + h + ":" + two(m) + ":" + two(s));
+            setKey.setBackground(pill(canSet ? WHITE : KEY, 0));
+            setKey.setTextColor(canSet ? BLACK : OFF);
+        }
+
+        // chips
+        faceLabel.setText(Prefs.style(this).toUpperCase());
+        alertLabel.setText(Sounds.selectedName(this).toUpperCase());
+        ((View) alertLabel.getParent()).setContentDescription("Time's up alert: " + Prefs.anim(this) + ", " + Sounds.selectedName(this) + ". Change");
+        ((View) faceLabel.getParent()).setContentDescription("Countdown face: " + Prefs.style(this) + ". Change");
+
+        // controls
+        String label = setting ? "START" : mode == TimerState.RUN ? "PAUSE" : mode == TimerState.PAUSE ? "RESUME" : "DISMISS";
+        primary.setText(label);
+        primary.setBackground(empty ? pill(KEY, 0) : pill(done ? RED : WHITE, 0));
+        primary.setTextColor(empty ? OFF : done ? 0xFFFFFFFF : BLACK);
+        boolean zeroOn = setting && !empty;
+        zero.setEnabled(zeroOn);
+        zero.setTextColor(zeroOn ? WHITE : OFF);
+        zero.setBackground(pill(Color.TRANSPARENT, zeroOn ? BORDER : (appliedDark ? 0xFF2C3236 : 0xFFD3D7DA)));
+        reset.setEnabled(running);
+        reset.invalidate();
+        if (setting) hint.setText(empty ? "Drag the face, or tap a number to type"
+                : "Tap " + new String[]{"HR", "MIN", "SEC"}[dial.getUnit()] + " again to type, or flip to start");
+        else hint.setText("Flip face-down to show it on the Glyph Matrix");
+
         dial.invalidate();
         handler.removeCallbacks(frame);
-        if (mode == TimerState.RUN) handler.post(frame);
+        if (mode == TimerState.RUN || mode == TimerState.DONE) handler.post(frame);
+    }
+
+    /** The big chip's digits: the set time, the time left, or the digits being typed. */
+    private void showTime() {
+        int mode = st.mode;
+        boolean setting = mode == TimerState.SET, done = mode == TimerState.DONE;
+        if (typing) {
+            String r = raw();
+            int n = typed.length();
+            boolean tooBig = typedSeconds() > 86399;
+            for (int i = 0; i < 3; i++) {
+                android.text.SpannableString sp = new android.text.SpannableString(r.substring(i * 2, i * 2 + 2));
+                for (int j = 0; j < 2; j++) {
+                    boolean on = i * 2 + j >= 6 - n;
+                    int c = tooBig ? RED : on ? WHITE : FAINT;
+                    sp.setSpan(new android.text.style.ForegroundColorSpan(c), j, j + 1, 0);
+                }
+                segDigits[i].setText(sp);
+                segUnits[i].setTextColor(i * 2 + 1 >= 6 - n ? SUB : FAINT);
+                segs[i].setBackground(null);
+            }
+            return;
+        }
+        long secs = st.displaySeconds();
+        long[] v = {secs / 3600, secs % 3600 / 60, secs % 60};
+        for (int i = 0; i < 3; i++) {
+            boolean picked = setting && dial.getUnit() == i;
+            boolean zeroPart = v[i] == 0 && (st.setSeconds() <= 0 && setting || (i == 0 && !picked));
+            int c = picked ? BLACK : zeroPart ? FAINT : i == 2 ? SUB : WHITE;
+            int uc = picked ? BLACK : zeroPart ? FAINT : SUB;
+            if (done) { c = RED; uc = RED; }
+            segDigits[i].setText(two(v[i]));
+            segDigits[i].setTextColor(c);
+            segUnits[i].setTextColor(uc);
+            segs[i].setBackground(picked ? rounded(WHITE, px(26), 0, 0) : null);
+            segs[i].setClickable(setting);
+        }
     }
 
     // ---- lifecycle -------------------------------------------------------------------
@@ -342,7 +570,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     public void onSensorChanged(SensorEvent e) {
         float x = e.values[0], y = e.values[1], z = e.values[2];
         boolean faceDown = z < -8.5f && Math.abs(x) < 2.5f && Math.abs(y) < 2.5f;
-        if (!faceDown || st.mode != TimerState.SET || st.setSeconds() <= 0) {
+        if (!faceDown || typing || st.mode != TimerState.SET || st.setSeconds() <= 0) {
             faceDownSince = 0;
             return;
         }
@@ -362,6 +590,8 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
     private int px(float v) { return Math.round(v * dp); }
 
+    private static String two(long n) { return n < 10 ? "0" + n : String.valueOf(n); }
+
     private TextView text(String s, float sp, int color, android.graphics.Typeface tf) {
         TextView t = new TextView(this);
         t.setText(s);
@@ -374,17 +604,16 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     }
 
     private GradientDrawable pill(int fill, int stroke) {
-        GradientDrawable d = new GradientDrawable();
-        d.setCornerRadius(px(999));
-        d.setColor(fill);
-        if (stroke != 0) d.setStroke(px(1), stroke);
-        return d;
+        return rounded(fill, px(999), stroke, 1f);
     }
 
-    private GradientDrawable circle(int fill) {
+    private GradientDrawable rounded(int fill, int radius) { return rounded(fill, radius, 0, 0); }
+
+    private GradientDrawable rounded(int fill, int radius, int stroke, float strokeDp) {
         GradientDrawable d = new GradientDrawable();
-        d.setShape(GradientDrawable.OVAL);
+        d.setCornerRadius(radius);
         d.setColor(fill);
+        if (stroke != 0) d.setStroke(Math.max(1, Math.round(strokeDp * dp)), stroke);
         return d;
     }
 
@@ -401,7 +630,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
             setFocusable(true);
         }
         @Override protected void onDraw(Canvas c) {
-            float cx = getWidth() / 2f, cy = getHeight() / 2f, u = getWidth() / 44f;
+            float cx = getWidth() / 2f, cy = getHeight() / 2f, u = getWidth() / 56f;
             c.drawCircle(cx, cy, 3.2f * u, p);
             c.drawCircle(cx, cy, 7f * u, p);
             for (int i = 0; i < 8; i++) {
@@ -412,12 +641,27 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         }
     }
 
-    /** Small outlined speaker for the alarm sound row. */
-    static class SpeakerIcon extends View {
+    /** A small round face of dots, for the face chip. */
+    static class FaceIcon extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path body = new Path();
+        private final float d;
+        FaceIcon(Context c) { super(c); d = c.getResources().getDisplayMetrics().density; p.setColor(WHITE); }
+        @Override protected void onDraw(Canvas c) {
+            float w = getWidth(), cx = w / 2, u = w / 24f;
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2 * d);
+            c.drawCircle(cx, cx, 9.5f * u, p);
+            p.setStyle(Paint.Style.FILL);
+            for (int i = -1; i <= 1; i += 2) for (int j = -1; j <= 1; j += 2) c.drawCircle(cx + i * 3 * u, cx + j * 3 * u, 1.3f * u, p);
+        }
+    }
+
+    /** A bell, for the time's-up alert chip. */
+    static class BellIcon extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
         private final RectF oval = new RectF();
-        SpeakerIcon(Context c) {
+        BellIcon(Context c) {
             super(c);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(2 * c.getResources().getDisplayMetrics().density);
@@ -427,54 +671,50 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         }
         @Override protected void onDraw(Canvas c) {
             float u = getWidth() / 24f;
-            body.reset();
-            body.moveTo(11 * u, 5 * u); body.lineTo(6 * u, 9 * u); body.lineTo(3 * u, 9 * u);
-            body.lineTo(3 * u, 15 * u); body.lineTo(6 * u, 15 * u); body.lineTo(11 * u, 19 * u); body.close();
-            c.drawPath(body, p);
-            oval.set(10.5f * u, 8.5f * u, 17.5f * u, 15.5f * u);
-            c.drawArc(oval, -50, 100, false, p);
-            oval.set(9.5f * u, 5.5f * u, 21.5f * u, 18.5f * u);
-            c.drawArc(oval, -50, 100, false, p);
+            path.reset();
+            path.moveTo(6 * u, 16 * u);
+            path.lineTo(6 * u, 11 * u);
+            oval.set(6 * u, 5 * u, 18 * u, 17 * u);
+            path.arcTo(oval, 180, 180);
+            path.lineTo(18 * u, 16 * u);
+            path.lineTo(19.5f * u, 18 * u);
+            path.lineTo(4.5f * u, 18 * u);
+            path.close();
+            c.drawPath(path, p);
+            oval.set(10 * u, 18.5f * u, 14 * u, 22.5f * u);
+            c.drawArc(oval, 0, 180, false, p);
         }
     }
 
-    /** Round outlined button reading "00" in the dot font: zeroes the dial. Dims when there's nothing to clear. */
-    static class ZeroButton extends View {
-        private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        ZeroButton(Context c) {
+    /** Delete key: a tag shape with a cross. */
+    class DeleteIcon extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
+        DeleteIcon(Context c) {
             super(c);
-            float d = c.getResources().getDisplayMetrics().density;
-            ring.setStyle(Paint.Style.STROKE);
-            ring.setStrokeWidth(d);
-            label.setTypeface(Fonts.doto(c));
-            label.setTextAlign(Paint.Align.CENTER);
-            label.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 20, c.getResources().getDisplayMetrics()));
-            setClickable(true);
-            setFocusable(true);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.8f * dp);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeJoin(Paint.Join.ROUND);
+            p.setColor(WHITE);
         }
-
-        @Override
-        public void setEnabled(boolean on) {
-            super.setEnabled(on);
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(Canvas c) {
-            float w = getWidth(), h = getHeight();
-            boolean on = isEnabled();
-            ring.setColor(on ? RING : BORDER);
-            label.setColor(on ? WHITE : DARK);
-            c.drawCircle(w / 2, h / 2, Math.min(w, h) / 2 - ring.getStrokeWidth(), ring);
-            Paint.FontMetrics fm = label.getFontMetrics();
-            c.drawText("00", w / 2, h / 2 - (fm.ascent + fm.descent) / 2, label);
+        @Override protected void onDraw(Canvas c) {
+            float s = 24 * dp, x0 = (getWidth() - s) / 2, y0 = (getHeight() - s) / 2, u = s / 24f;
+            path.reset();
+            path.moveTo(x0 + 21 * u, y0 + 5 * u);
+            path.lineTo(x0 + 9 * u, y0 + 5 * u);
+            path.lineTo(x0 + 3 * u, y0 + 12 * u);
+            path.lineTo(x0 + 9 * u, y0 + 19 * u);
+            path.lineTo(x0 + 21 * u, y0 + 19 * u);
+            path.close();
+            c.drawPath(path, p);
+            c.drawLine(x0 + 12 * u, y0 + 9 * u, x0 + 18 * u, y0 + 15 * u, p);
+            c.drawLine(x0 + 18 * u, y0 + 9 * u, x0 + 12 * u, y0 + 15 * u, p);
         }
     }
 
-    /** Round outlined button with a circular-arrow reset icon. */
-    static class ResetButton extends View {
+    /** Round outlined button with a circular-arrow reset icon; dims when there's nothing to reset. */
+    class ResetButton extends View {
         private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint icon = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path path = new Path();
@@ -482,15 +722,12 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
 
         ResetButton(Context c) {
             super(c);
-            float d = c.getResources().getDisplayMetrics().density;
             ring.setStyle(Paint.Style.STROKE);
-            ring.setStrokeWidth(d);
-            ring.setColor(RING);
+            ring.setStrokeWidth(dp);
             icon.setStyle(Paint.Style.STROKE);
-            icon.setStrokeWidth(2 * d);
+            icon.setStrokeWidth(2 * dp);
             icon.setStrokeCap(Paint.Cap.ROUND);
             icon.setStrokeJoin(Paint.Join.ROUND);
-            icon.setColor(WHITE);
             setClickable(true);
             setFocusable(true);
         }
@@ -498,6 +735,8 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         @Override
         protected void onDraw(Canvas c) {
             float w = getWidth(), h = getHeight();
+            ring.setColor(BORDER);
+            icon.setColor(isEnabled() ? WHITE : OFF);
             c.drawCircle(w / 2, h / 2, Math.min(w, h) / 2 - ring.getStrokeWidth(), ring);
             float s = Math.min(w, h) * 0.18f; // icon radius
             float cx = w / 2, cy = h / 2;

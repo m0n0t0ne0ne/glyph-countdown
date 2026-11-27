@@ -486,7 +486,7 @@ public class TimerService extends Service {
     private void acquireWake() {
         if (wakeLock == null) {
             wakeLock = getSystemService(PowerManager.class)
-                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "GlyphCountdown:timer");
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Parallax:timer");
             wakeLock.setReferenceCounted(false);
         }
         long rem = st.remainingNow();

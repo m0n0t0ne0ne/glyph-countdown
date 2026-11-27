@@ -1,20 +1,21 @@
-# Glyph Countdown: hand-off for Claude Code
+# Parallax: hand-off for Claude Code
 
 Hand-off from the claude.ai sessions, Nov 27, 2026. Read this before making changes.
 
 ## What this is
 
-Glyph Countdown is an Android countdown timer for the Nothing Phone (3) and Phone (4a) Pro. It shows the time left on the rear Glyph Matrix.
+Parallax (formerly Glyph Countdown) is an Android countdown timer for the Nothing Phone (3) and Phone (4a) Pro. It shows the time left on the rear Glyph Matrix.
 
 - **Repository:** `m0n0t0ne0ne/glyph-countdown`, default branch `main`. Use this repo, not the old `miesesk` one.
 - **Website:** https://m0n0t0ne0ne.github.io/glyph-countdown/, served by GitHub Pages from `/docs` on `main`.
-- **Releases:** https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest. The APK is named `GlyphCountdown-<version>.apk`.
-- **Current release:** **1.5.2** (versionCode 18), released Nov 9, 2026.
-- **Stack:** plain Java, with no Gradle and no Android Studio. `setup-deps.sh` downloads pinned build tools into `deps/`, and `build.sh` builds `out/GlyphCountdown.apk`. Nothing's Glyph Matrix SDK is downloaded at build time and is never committed, because its licence forbids redistributing it.
+- **Releases:** https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest. The APK is named `Parallax-<version>.apk` (`GlyphCountdown-…` up to 1.5.2).
+- **Current release:** **2.0** (versionCode 19): the rename to Parallax, the face-as-dial timer screen with Google Clock-style typing, the new widget suite and icon.
+- **Stack:** plain Java, with no Gradle and no Android Studio. `setup-deps.sh` downloads pinned build tools into `deps/`, and `build.sh` builds `out/Parallax.apk`. Nothing's Glyph Matrix SDK is downloaded at build time and is never committed, because its licence forbids redistributing it.
 - **Signing certificate SHA-256:** `a22a650d43425496555e814f387403d5d5b95fe1cd9e70519c030388654439e7`. The real key lives only in the repo's GitHub secrets. Never create or commit a `release.jks`.
 
 | Version | Change |
 | --- | --- |
+| 2.0 | Renamed Parallax; face-as-dial timer screen, typed times, new widgets and icon |
 | 1.5.2 | **00** button to the right of Start zeroes the dial (setting only; greyed out while running or paused) |
 | 1.5.1 | No dark gap when laying the phone down or picking it up |
 | 1.5 | Pick up to dismiss replaces double-tap |
@@ -36,7 +37,7 @@ The build scripts are bash. On Windows, run them in **Git Bash** or **WSL**. On 
 3. In this folder, run `./setup-deps.sh` once. It downloads about 50 MB into `deps/`, which git ignores.
 4. Test build with a throwaway key. Use a fresh keystore path each time, because reusing one with a different password fails:
    `KEYSTORE=/tmp/check-$(date +%s).jks KEYSTORE_PASS=throwaway123 ./build.sh`
-   Success prints `Built .../out/GlyphCountdown.apk`.
+   Success prints `Built .../out/Parallax.apk`.
 5. Before pushing, run `git pull` to make sure the copy is up to date with GitHub.
 
 **On Windows (Git Bash):**
@@ -98,7 +99,7 @@ What double-tap taught: with the phone face down on a table, a tap on the back s
 
 ## The 00 (zero-out) button, 1.5.2
 
-- It's in `MainActivity.java` (the `ZeroButton` class, `onZero()`, and the `empty` logic in `refresh()`).
+- It's in `MainActivity.java` (`onZero()` and the `empty` logic in `refresh()`). Since 2.0 it's a plain text button in Space Mono.
 - A round outlined button reads "00" in the Doto font, to the right of START. START was narrowed from 220 to 190 dp, and shrinks further on narrow screens.
 - Tapping it while setting a time sets hours, minutes and seconds to 0, saves them, and gives a confirm vibration.
 - It's greyed out while a countdown is running, paused or ringing; Reset still returns a running timer to the time that was set. At 00:00:00, START and 00 both grey out, and the hint reads "Drag the dial to set a time".
@@ -113,13 +114,13 @@ All app code is in `app/src/com/glyphcountdown/app/`. These are the files most c
 | `TimerState.java` | Shared timer state (SET / RUN / PAUSE / DONE, the set duration) |
 | `Placement.java` | Works out where the phone is (table down/up, hand, covered). Plain Java, testable off the phone |
 | `PickupDetector.java` | Tilt-based pick up to dismiss. Plain Java |
-| `MainActivity.java` | Timer screen, the 00 button, and flip to start (500 ms face down, sends `EXTRA_FLIPPED`) |
-| `DialView.java` | The tick-ring dial and the HH:MM:SS readout |
+| `MainActivity.java` | Timer screen (2.0): big HR / MIN / SEC chip (tap a unit to pick it, tap again to type, Google Clock-style, digits fill from the right), the chip row (face, alert, settings), the keypad, the 00 button, and flip to start (500 ms face down, sends `EXTRA_FLIPPED`) |
+| `DialView.java` | The face as the dial (2.0): live Glyph Matrix preview in the chosen style inside a ring of 30 thirds; drag to set the picked unit |
 | `Palette.java` | Light and dark theme colours |
 | `MatrixRenderer.java` | 25 × 25 and 13 × 13 frames. No Android code, so it runs on a desktop JVM |
 | `MorphEngine.java`, `SoundSync.java` | Time's-up animations and stutter sync to the alarm sound |
 | `TimesUpActivity.java`, `Prefs.java` | Time's up page and saved switches (all on by default except translucent widgets) |
-| `Widget*.java`, `WidgetRenderer.java` | Home-screen widgets |
+| `Widget*.java`, `WidgetRenderer.java` | Home-screen widgets (2.0): three rows of dot digits and 10 pills split into thirds; the 1×1 has a ring of thirds. Previews come from `tools/make_previews.py`, the icon from `tools/make_icon.py` |
 | `.github/workflows/release.yml` | Auto-release on a version change, gated by the `release` environment |
 | `docs/` | Website (`index.html`, `assets/`), design images, release notes |
 

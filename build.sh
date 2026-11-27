@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds out/GlyphCountdown.apk without Gradle: javac -> dx -> ARSCLib -> zip align -> apksigner.
+# Builds out/Parallax.apk without Gradle: javac -> dx -> ARSCLib -> zip align -> apksigner.
 # Run ./setup-deps.sh once first.
 #
 # Signing: set KEYSTORE_PASS (and optionally KEYSTORE, default ./release.jks).
@@ -48,11 +48,11 @@ if [ ! -f "$KEYSTORE" ]; then
   [ "${REQUIRE_KEYSTORE:-0}" = "1" ] && { echo "No keystore at $KEYSTORE"; exit 1; }
   echo "Creating a new signing key at $KEYSTORE"
   keytool -genkeypair -keystore "$KEYSTORE" -storepass "$KEYSTORE_PASS" -keypass "$KEYSTORE_PASS" \
-    -alias glyph -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Glyph Countdown" >/dev/null 2>&1
+    -alias glyph -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Parallax" >/dev/null 2>&1
 fi
 java -cp "$DEPS/tools/apksig" com.android.apksigner.ApkSignerTool sign \
   --ks "$KEYSTORE" --ks-pass env:KEYSTORE_PASS --ks-key-alias glyph --min-sdk-version 33 \
   --v2-signing-enabled true --v3-signing-enabled true \
-  --out "$OUT/GlyphCountdown.apk" "$OUT/aligned.apk"
-java -cp "$DEPS/tools/apksig" com.android.apksigner.ApkSignerTool verify "$OUT/GlyphCountdown.apk"
-echo "Built $OUT/GlyphCountdown.apk"
+  --out "$OUT/Parallax.apk" "$OUT/aligned.apk"
+java -cp "$DEPS/tools/apksig" com.android.apksigner.ApkSignerTool verify "$OUT/Parallax.apk"
+echo "Built $OUT/Parallax.apk"

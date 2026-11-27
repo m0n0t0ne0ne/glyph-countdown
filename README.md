@@ -1,11 +1,11 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/icon-light.png">
-    <img src="docs/icon.png" width="88" alt="Glyph Countdown icon: twelve clock spokes, three faded, around a red dot">
+    <img src="docs/icon.png" width="88" alt="Parallax icon: half a solid disc beside half a disc of matrix dots, a step out of line">
   </picture>
 </p>
 
-<h1 align="center">Glyph Countdown</h1>
+<h1 align="center">Parallax</h1>
 <p align="center"><b>A countdown timer on the back of your Nothing phone.</b><br>Shows the time left on the Glyph Matrix of the Phone (3) and Phone (4a) Pro. Flip it face down to start; pick it up to stop the alarm.</p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ## How it works
 
-1. **Set the time:** drag the dot round the ring of ticks, with a light haptic tick at each step. Hours, minutes or seconds, up to 23 h 59 min 59 s. Tap **00** beside Start to clear the dial back to 00:00:00.
+1. **Set the time:** the face is the dial. It shows a live preview of the Glyph Matrix in your countdown style; drag round the ring of thirds to set the hours, minutes or seconds you picked, with a light haptic tick at each step. Or tap the picked unit again and type the time, as in Google Clock: digits fill in from the right (7800 becomes 1 h 18 min). Up to 23 h 59 min 59 s. Tap **00** beside Start to clear it back to 00:00:00.
 2. **Flip it face down:** with the app open, lay the phone face down and the timer starts. The matrix lights at once, even with the screen still on.
 3. **Watch the back:** the time left sits inside a ring that drains clockwise. Close the app and it keeps going, with a live notification (Pause, Resume, Reset).
 4. **Time's up:** the matrix plays your animation in step with your alarm sound, at alarm volume, for up to 3 minutes.
@@ -44,9 +44,9 @@
   - **Sync with alarm sound:** the animation stutters on every note, snapping back, holding, then carrying on.
   - **Dim with notes**, with a **Dim level** slider; **Vibrate**; **Pick up to dismiss**.
 - **Both matrix sizes:** on the Phone (3)'s 25 × 25 matrix, H:MM from an hour up, then MM:SS. On the Phone (4a) Pro's 13 × 13 matrix, one number: hours, minutes, or seconds in the last minute.
-- **Widgets:** a circle, a pill and a rounded square, shaped like Nothing's own. They tick every second, pulse red at time's up, and start the time you last set. Translucent background optional.
+- **Widgets:** a 2×2, a 2×1 and a round 1×1. Hours, minutes and seconds in dot-matrix digits, with 10 pills that empty a third at a time as the countdown runs (a ring of thirds on the 1×1). They tick every second, pulse red at time's up, and start the time you last set. Translucent background optional.
 - **Light and dark:** the app and widgets follow the phone or a theme you pick. On a Nothing phone the app uses the NDot font already on the phone.
-- **TalkBack:** the dial announces the time and can be adjusted by swiping up or down.
+- **TalkBack:** the face announces the time and can be adjusted by swiping up or down.
 
 More pictures of each feature are on the [website](https://m0n0t0ne0ne.github.io/glyph-countdown/).
 
@@ -56,10 +56,10 @@ More pictures of each feature are on the [website](https://m0n0t0ne0ne.github.io
 
 ## Install
 
-1. On Android 13 or newer, open the [latest release](https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest) and download `GlyphCountdown-….apk`.
+1. On Android 13 or newer, open the [latest release](https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest) and download `Parallax-….apk`.
 2. Open it, and allow **Install unknown apps** when Android asks.
 3. On first start, allow notifications, so the countdown and alarm can show.
-4. For widgets, long-press the home screen, then Widgets, then Glyph Countdown.
+4. For widgets, long-press the home screen, then Widgets, then Parallax.
 
 Updates install over the top and keep your settings. The Glyph Matrix needs a Nothing Phone (3) or Phone (4a) Pro; on other phones the timer, sounds and widgets still work.
 
@@ -71,7 +71,7 @@ Every release is built and signed by GitHub Actions, and its notes list the APK'
 SHA-256: a22a650d43425496555e814f387403d5d5b95fe1cd9e70519c030388654439e7
 ```
 
-Check with `apksigner verify --print-certs GlyphCountdown-….apk`. An APK signed with any other certificate isn't an official build.
+Check with `apksigner verify --print-certs Parallax-….apk`. An APK signed with any other certificate isn't an official build.
 
 ### Settings
 
@@ -123,7 +123,7 @@ No Android Studio or Gradle needed: just `git`, a JDK (17+) and `python3`.
 ```sh
 ./setup-deps.sh                      # once: downloads and compiles the build tools (~50 MB)
 KEYSTORE_PASS='choose-a-password' ./build.sh
-# → out/GlyphCountdown.apk
+# → out/Parallax.apk
 ```
 
 A local build signs with `release.jks` (or wherever `KEYSTORE` points), creating a key there if none exists. That's for your own testing: phones won't accept it as an update to the official releases.
