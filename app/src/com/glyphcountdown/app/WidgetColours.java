@@ -25,15 +25,15 @@ final class WidgetColours {
         try {
             WallpaperColors wc = WallpaperManager.getInstance(c).getWallpaperColors(WallpaperManager.FLAG_SYSTEM);
             if (wc == null) return out;
-            List<Color> main = new ArrayList<>(wc.getMainColors());
+            List<Integer> main = mainColours(wc);
             // most colourful first; near-greys are skipped
-            Collections.sort(main, new Comparator<Color>() {
-                @Override public int compare(Color a, Color b) {
-                    return Float.compare(chroma(b.toArgb()), chroma(a.toArgb()));
+            Collections.sort(main, new Comparator<Integer>() {
+                @Override public int compare(Integer a, Integer b) {
+                    return Float.compare(chroma(b), chroma(a));
                 }
             });
-            for (Color col : main) {
-                int argb = col.toArgb() | 0xFF000000;
+            for (int col : main) {
+                int argb = col | 0xFF000000;
                 if (chroma(argb) < 0.06f) continue;
                 boolean apart = true;
                 for (int k : out) if (hueDistance(hsl(k)[0], hsl(argb)[0]) < 20) { apart = false; break; }
@@ -42,6 +42,27 @@ final class WidgetColours {
             }
         } catch (Throwable ignored) {
             // a live wallpaper or a locked-down launcher may not report colours
+        }
+        return out;
+    }
+
+    /**
+     * All of the wallpaper's main colours. getMainColors() is blocked for apps (hidden API), and
+     * the public getters give only three, but toString() lists every main colour as ARGB hex
+     * ("WallpaperColors: ff195362 ff64999e ... h: 6"), so read them from there. If that format
+     * ever changes, fall back to the public primary / secondary / tertiary colours.
+     */
+    private static List<Integer> mainColours(WallpaperColors wc) {
+        List<Integer> out = new ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(ff[0-9a-fA-F]{6})\\b").matcher(String.valueOf(wc));
+        while (m.find()) {
+            int argb = (int) Long.parseLong(m.group(1), 16);
+            if (!out.contains(argb)) out.add(argb);
+        }
+        if (out.isEmpty()) {
+            for (Color col : new Color[]{wc.getPrimaryColor(), wc.getSecondaryColor(), wc.getTertiaryColor()}) {
+                if (col != null && !out.contains(col.toArgb())) out.add(col.toArgb());
+            }
         }
         return out;
     }

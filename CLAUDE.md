@@ -9,12 +9,13 @@ Parallax (formerly Glyph Countdown) is an Android countdown timer for the Nothin
 - **Repository:** `m0n0t0ne0ne/glyph-countdown`, default branch `main`. Use this repo, not the old `miesesk` one.
 - **Website:** https://m0n0t0ne0ne.github.io/glyph-countdown/, served by GitHub Pages from `/docs` on `main`.
 - **Releases:** https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest. The APK is named `Parallax-<version>.apk` (`GlyphCountdown-…` up to 1.5.2).
-- **Current release:** **2.2** (versionCode 22): Widget colour picker (swatches from the wallpaper's own colours, separate from Nothing's dynamic theme), larger 2×2 digits spread to the pills' height, no Reset on the 2×2.
+- **Current release:** **2.2.1** (versionCode 23): Widget colour picker (swatches from the wallpaper's own colours, separate from Nothing's dynamic theme), larger 2×2 digits spread to the pills' height, no Reset on the 2×2.
 - **Stack:** plain Java, with no Gradle and no Android Studio. `setup-deps.sh` downloads pinned build tools into `deps/`, and `build.sh` builds `out/Parallax.apk`. Nothing's Glyph Matrix SDK is downloaded at build time and is never committed, because its licence forbids redistributing it.
 - **Signing certificate SHA-256:** `a22a650d43425496555e814f387403d5d5b95fe1cd9e70519c030388654439e7`. The real key lives only in the repo's GitHub secrets. Never create or commit a `release.jks`.
 
 | Version | Change |
 | --- | --- |
+| 2.2.1 | Widget colour reads the wallpaper colours from `WallpaperColors.toString()` (`getMainColors()` is a blocked hidden API) |
 | 2.2 | Widget colour picker from the wallpaper; larger, spread 2×2 digits; no Reset chip |
 | 2.1 | Button-free 2×2 widget, wallpaper colours for widgets, plain Doto keypad, gap under the face while typing |
 | 2.0.1 | Timer screen text fits on a real phone |
