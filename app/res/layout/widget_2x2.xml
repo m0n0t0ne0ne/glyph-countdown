@@ -6,9 +6,9 @@
     <ImageView android:id="@id/w_image_dark" android:layout_width="match_parent" android:layout_height="match_parent"
         android:scaleType="fitXY" android:src="@drawable/widget_prev_4" android:visibility="gone"
         android:contentDescription="Parallax timer" />
-    <!-- no buttons: tap the time to start/pause, the pills to open the app; reset from the app or the notification -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal">
-        <FrameLayout android:id="@id/w_toggle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="165" android:contentDescription="Start timer" />
-        <FrameLayout android:id="@id/w_open" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="90" android:contentDescription="Open timer" />
+    <!-- no buttons: tap the time (top) to start/pause, the LEFT / SET table (bottom) to open the app -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
+        <FrameLayout android:id="@id/w_toggle" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="110" android:contentDescription="Start timer" />
+        <FrameLayout android:id="@id/w_open" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="60" android:contentDescription="Open timer" />
     </LinearLayout>
 </FrameLayout>

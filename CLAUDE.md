@@ -9,12 +9,13 @@ Parallax (formerly Glyph Countdown) is an Android countdown timer for the Nothin
 - **Repository:** `m0n0t0ne0ne/glyph-countdown`, default branch `main`. Use this repo, not the old `miesesk` one.
 - **Website:** https://m0n0t0ne0ne.github.io/glyph-countdown/, served by GitHub Pages from `/docs` on `main`.
 - **Releases:** https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest. The APK is named `Parallax-<version>.apk` (`GlyphCountdown-…` up to 1.5.2).
-- **Current release:** **2.2.1** (versionCode 23): Widget colour picker (swatches from the wallpaper's own colours, separate from Nothing's dynamic theme), larger 2×2 digits spread to the pills' height, no Reset on the 2×2.
+- **Current release:** **2.3** (versionCode 24): Isometric Pad widgets: the time as a hairline wireframe solid on an isometric grid, depth = time left (designed with the Impeccable skill; direction contract in `.impeccable/surfaces/`).
 - **Stack:** plain Java, with no Gradle and no Android Studio. `setup-deps.sh` downloads pinned build tools into `deps/`, and `build.sh` builds `out/Parallax.apk`. Nothing's Glyph Matrix SDK is downloaded at build time and is never committed, because its licence forbids redistributing it.
 - **Signing certificate SHA-256:** `a22a650d43425496555e814f387403d5d5b95fe1cd9e70519c030388654439e7`. The real key lives only in the repo's GitHub secrets. Never create or commit a `release.jks`.
 
 | Version | Change |
 | --- | --- |
+| 2.3 | Isometric Pad widgets (`IsoPad.java`); Widget colour retints the drawing; 2×2 / 2×1 tap zones: time toggles, the rest opens the app |
 | 2.2.1 | Widget colour reads the wallpaper colours from `WallpaperColors.toString()` (`getMainColors()` is a blocked hidden API) |
 | 2.2 | Widget colour picker from the wallpaper; larger, spread 2×2 digits; no Reset chip |
 | 2.1 | Button-free 2×2 widget, wallpaper colours for widgets, plain Doto keypad, gap under the face while typing |
@@ -124,7 +125,7 @@ All app code is in `app/src/com/glyphcountdown/app/`. These are the files most c
 | `MatrixRenderer.java` | 25 × 25 and 13 × 13 frames. No Android code, so it runs on a desktop JVM |
 | `MorphEngine.java`, `SoundSync.java` | Time's-up animations and stutter sync to the alarm sound |
 | `TimesUpActivity.java`, `Prefs.java` | Time's up page and saved switches (all on by default except translucent widgets) |
-| `Widget*.java`, `WidgetRenderer.java` | Home-screen widgets (2.0): three rows of dot digits and 10 pills split into thirds; the 1×1 has a ring of thirds. The 2×2 has no buttons (2.1) and no Reset (2.2): tap the time to toggle, the pills to open the app. `WidgetColours` reads `WallpaperColors` and tunes the picked colour per card; `WidgetColourActivity` is the picker. Widgets can only receive taps: a swipe test on the Phone (3) showed sideways swipes go to the launcher and up/down swipes never reach the app. Previews come from `tools/make_previews.py`, the icon from `tools/make_icon.py` |
+| `Widget*.java`, `WidgetRenderer.java`, `IsoPad.java` | Home-screen widgets. Since 2.3 `IsoPad` draws every size as the Isometric Pad: seven-segment line lettering extruded on an isometric grid, depth = time left, a red Z dimension and a LEFT / SET table on the 2×2. Tap zones: the time toggles, the rest opens the app (1×1 toggles anywhere). `WidgetColours` reads `WallpaperColors` and tunes the picked colour per card; `WidgetColourActivity` is the picker. Widgets can only receive taps: a swipe test on the Phone (3) showed sideways swipes go to the launcher and up/down swipes never reach the app. Previews come from `tools/make_previews.py`, the icon from `tools/make_icon.py` |
 | `.github/workflows/release.yml` | Auto-release on a version change, gated by the `release` environment |
 | `docs/` | Website (`index.html`, `assets/`), design images, release notes |
 

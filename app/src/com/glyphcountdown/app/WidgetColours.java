@@ -83,7 +83,7 @@ final class WidgetColours {
 
     /** A plain name for the colour, from its hue. */
     static String name(int colour) {
-        if (colour == 0) return "White";
+        if (colour == 0) return "Plain";
         float hue = hsl(colour)[0];
         int[] at = {0, 20, 40, 60, 95, 150, 180, 205, 230, 265, 290, 320, 345};
         String[] names = {"Red", "Coral", "Amber", "Olive", "Sage", "Green", "Teal", "Steel", "Blue", "Indigo", "Violet", "Plum", "Rose"};

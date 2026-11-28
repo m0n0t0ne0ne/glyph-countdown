@@ -201,9 +201,9 @@ public class WidgetColourActivity extends Activity {
             float ring = 2 * dp, gap = 3 * dp, rad = Math.min(w, h) / 2 - ring - gap;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(colour == 0 ? WidgetRenderer.DARK.fg : WidgetColours.lit(colour, true));
+            p.setColor(colour == 0 ? 0xFF4F8797 : WidgetColours.lit(colour, true));
             c.drawArc(r, 90, 180, true, p);
-            p.setColor(colour == 0 ? WidgetRenderer.LIGHT.fg : WidgetColours.lit(colour, false));
+            p.setColor(colour == 0 ? 0xFF7FB3C4 : WidgetColours.lit(colour, false));
             c.drawArc(r, 270, 180, true, p);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(Math.max(1, dp));

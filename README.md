@@ -44,7 +44,7 @@
   - **Sync with alarm sound:** the animation stutters on every note, snapping back, holding, then carrying on.
   - **Dim with notes**, with a **Dim level** slider; **Vibrate**; **Pick up to dismiss**.
 - **Both matrix sizes:** on the Phone (3)'s 25 × 25 matrix, H:MM from an hour up, then MM:SS. On the Phone (4a) Pro's 13 × 13 matrix, one number: hours, minutes, or seconds in the last minute.
-- **Widgets:** a 2×2, a 2×1 and a round 1×1. Hours, minutes and seconds in dot-matrix digits, with 10 pills that empty a third at a time as the countdown runs (a ring of thirds on the 1×1). They tick every second, pulse red at time's up, and start the time you last set. The 2×2 has no buttons: tap the time to start or pause, and the pills to open the app. Pick the pills' and ring's colour from your wallpaper (or keep white), and optionally a translucent background.
+- **Widgets:** a 2×2, a 2×1 and a round 1×1. Drawn like an engineering sketch: the time in fine line lettering as a wireframe solid on an isometric grid, whose depth is the time left, so the digits flatten as the countdown runs. The 2×2 measures the depth with a red dimension line and lists the time left and set. They tick every second, pulse red at time's up, and start the time you last set. Tap the time to start or pause. Pick the drawing colour from your wallpaper, and optionally a translucent background.
 - **Light and dark:** the app and widgets follow the phone or a theme you pick. On a Nothing phone the app uses the NDot font already on the phone.
 - **TalkBack:** the face announces the time and can be adjusted by swiping up or down.
 

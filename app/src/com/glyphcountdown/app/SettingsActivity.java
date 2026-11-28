@@ -171,7 +171,7 @@ public class SettingsActivity extends Activity {
         LinearLayout wt = new LinearLayout(this);
         wt.setOrientation(LinearLayout.VERTICAL);
         wt.addView(text("Widget colour", 15, WHITE, Fonts.monoBold(this)));
-        TextView wsub = text("Pills and ring, picked from your wallpaper", 12, GREY, Fonts.mono(this));
+        TextView wsub = text("Drawing colour, picked from your wallpaper", 12, GREY, Fonts.mono(this));
         wsub.setLineSpacing(0, 1.3f);
         LinearLayout.LayoutParams wsl = new LinearLayout.LayoutParams(-1, -2);
         wsl.topMargin = px(4);
@@ -212,7 +212,7 @@ public class SettingsActivity extends Activity {
         colourValue.setText(wname.toUpperCase());
         GradientDrawable dot = new GradientDrawable();
         dot.setShape(GradientDrawable.OVAL);
-        dot.setColor(wcol == 0 ? WHITE : WidgetColours.lit(wcol, Palette.isDark(this)));
+        dot.setColor(wcol == 0 ? 0xFF7FB3C4 : WidgetColours.lit(wcol, Palette.isDark(this)));
         dot.setStroke(Math.max(1, px(1)), LINE);
         colourDot.setBackground(dot);
         colourRow.setContentDescription("Widget colour: " + wname + ". Change");

@@ -1,125 +1,92 @@
-"""Draws the widget picker previews (idle state, 25:00) in light and dark.
-Geometry mirrors WidgetRenderer.java (design units: 2×2 255 square, 2×1 255 × 120, 1×1 120 round).
+"""Draws the widget picker previews (idle state, 25:00 set) in light and dark: the Isometric Pad.
+Geometry mirrors IsoPad.java (design units: 2x2 170 square, 2x1 170 x 80, 1x1 80 round).
 Run from the repository root: python3 tools/make_previews.py"""
-import math
 from PIL import Image, ImageDraw, ImageFont
 
 THEMES = {
-    "dark":  dict(card=(0x18, 0x1C, 0x1E), fg=(0xEE, 0xF1, 0xF3), sub=(0xAE, 0xB4, 0xB9), dim=(0x8E, 0x95, 0x9A),
-                  faint=(0x3E, 0x45, 0x4A), line=(0x59, 0x60, 0x66), btn=(0xEE, 0xF1, 0xF3), btnfg=(0x18, 0x1C, 0x1E)),
-    "light": dict(card=(0xF2, 0xF3, 0xF4), fg=(0x18, 0x1C, 0x1E), sub=(0x4F, 0x55, 0x5A), dim=(0x5E, 0x64, 0x68),
-                  faint=(0xC4, 0xC9, 0xCD), line=(0x9A, 0xA0, 0xA5), btn=(0x18, 0x1C, 0x1E), btnfg=(0xF2, 0xF3, 0xF4)),
+    "dark":  dict(pad=(0x14, 0x19, 0x1B), ink=(0xE9, 0xEE, 0xF0), grid=(0x24, 0x43, 0x4D), back=(0x4F, 0x87, 0x97), acc=(0xFF, 0x7A, 0x52), sub=(0x8E, 0x9A, 0xA0)),
+    "light": dict(pad=(0xEE, 0xF2, 0xF3), ink=(0x1F, 0x24, 0x27), grid=(0xA9, 0xD3, 0xE0), back=(0x7F, 0xB3, 0xC4), acc=(0xD6, 0x4B, 0x2A), sub=(0x5A, 0x64, 0x68)),
 }
-S = 2  # supersampling
+S = 3  # supersampling
+SEG = {"a": (0, 0, 1, 0), "b": (1, 0, 1, 1), "c": (1, 1, 1, 2), "d": (0, 2, 1, 2), "e": (0, 1, 0, 2), "f": (0, 0, 0, 1), "g": (0, 1, 1, 1)}
+DIG = {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg"}
 
 
-def doto(size):
-    f = ImageFont.truetype("app/assets/fonts/Doto.ttf", int(size))
-    try:
-        f.set_variation_by_name(b"Black")
-    except Exception:
-        pass
-    return f
+def mono(size):
+    return ImageFont.truetype("app/assets/fonts/SpaceMono-Regular.ttf", max(1, int(size)))
 
 
-def mono(size, bold=False):
-    return ImageFont.truetype("app/assets/fonts/SpaceMono-%s.ttf" % ("Bold" if bold else "Regular"), int(size))
+def width(t, s):
+    return sum(.55 * s if ch == ":" else 1.45 * s for ch in t) - .45 * s
 
 
-def rows3(d, t, x, y, size, gap, usize, ugap):
-    vals, units = ["00", "25", "00"], ["HR", "MIN", "SEC"]
-    cols = [t["faint"], t["fg"], t["dim"]]
-    ucols = [t["faint"], t["sub"], t["sub"]]
-    f, uf = doto(size), mono(usize)
-    dw = d.textlength("00", font=f)
-    row = size * 0.92
-    for i in range(3):
-        base = y + row * (i + 1) + gap * i - size * 0.08
-        d.text((x, base), vals[i], font=f, fill=cols[i], anchor="ls")
-        d.text((x + dw + ugap, base - size * 0.06), units[i], font=uf, fill=ucols[i], anchor="ls")
+def pad(im, d, w, h, r, t, k, round_=False):
+    if round_:
+        d.ellipse([0, 0, w - 1, h - 1], fill=t["pad"])
+    else:
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=r, fill=t["pad"])
+    grid = Image.new("RGBA", (w, h), (0, 0, 0, 0)); g = ImageDraw.Draw(grid)
+    step, lw, x = 10 * k, max(1, round(.5 * k)), -h * 1.732
+    while x < w + h * 1.732:
+        g.line([(x, 0), (x + h * 1.732, h)], fill=t["grid"] + (150,), width=lw)
+        g.line([(x, 0), (x - h * 1.732, h)], fill=t["grid"] + (150,), width=lw)
+        x += step
+    mask = Image.new("L", (w, h), 0); md = ImageDraw.Draw(mask)
+    (md.ellipse if round_ else (lambda b, **kw: md.rounded_rectangle(b, radius=r, **kw)))([0, 0, w - 1, h - 1], fill=255)
+    im.paste(grid, (0, 0), Image.composite(grid, Image.new("RGBA", (w, h)), mask))
 
 
-def rows_spread(d, t, x, right, top, bottom, size, usize, ugap):
-    """HR / MIN / SEC spread so the first digits' top sits on top and the last's bottom on bottom."""
-    vals, units = ["00", "25", "00"], ["HR", "MIN", "SEC"]
-    cols = [t["faint"], t["fg"], t["dim"]]
-    ucols = [t["faint"], t["sub"], t["sub"]]
-    uf = mono(usize)
-    f = doto(size)
-    need = d.textlength("00", font=f) + ugap + d.textlength("MIN", font=uf)
-    if need > right - x:
-        size *= (right - x) / need
-        f = doto(size)
-    l, tp, r, b = d.textbbox((0, 0), "00", font=f, anchor="ls")
-    gh = b - tp
-    gap = (bottom - top - 3 * gh) / 2
-    dw = d.textlength("00", font=f)
-    for i in range(3):
-        base = top + i * (gh + gap) - tp
-        d.text((x, base), vals[i], font=f, fill=cols[i], anchor="ls")
-        d.text((x + dw + ugap, base - usize * 0.1), units[i], font=uf, fill=ucols[i], anchor="ls")
-
-
-def pills(d, t, x, y, w, ph, gap, tgap):
-    tw = (w - 2 * tgap) / 3
-    for p in range(10):
-        py = y + p * (ph + gap)
-        # all thirds lit in the idle state; round the pill's two ends
-        d.rounded_rectangle([x, py, x + w, py + ph], radius=ph / 2, fill=t["fg"])
-        for j in (1, 2):
-            gx = x + j * tw + (j - 1) * tgap
-            d.rectangle([gx, py, gx + tgap, py + ph], fill=t["card"])
-
-
-def play(d, cx, cy, r, color):
-    d.polygon([(cx - r * .55, cy - r * .8), (cx - r * .55, cy + r * .8), (cx + r * .8, cy)], fill=color)
+def wire(d, txt, x0, y0, s, dep, fw, t):
+    dx, dy = dep * .866, -dep * .5
+    for p in range(3):
+        x = x0
+        for ch in txt:
+            if ch == ":":
+                if p == 2:
+                    for yy in (.6 * s, 1.4 * s):
+                        r = fw * .8; d.ellipse([x + .15 * s - r, y0 + yy - r, x + .15 * s + r, y0 + yy + r], fill=t["ink"])
+                x += .55 * s; continue
+            for sg in DIG[ch]:
+                a, b, c2, e = SEG[sg]; ax, ay, bx, by = x + a * s, y0 + b * s, x + c2 * s, y0 + e * s
+                if p == 0: d.line([(ax + dx, ay + dy), (bx + dx, by + dy)], fill=t["back"], width=max(1, round(fw * .35)))
+                if p == 1:
+                    for px, py in ((ax, ay), (bx, by)): d.line([(px, py), (px + dx, py + dy)], fill=t["back"], width=max(1, round(fw * .23)))
+                if p == 2: d.line([(ax, ay), (bx, by)], fill=t["ink"], width=round(fw))
+            x += 1.45 * s
 
 
 def make(theme, suffix):
     t = THEMES[theme]
-    # 2×2
-    w = h = 510; k = w / 255 * S
-    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=48 * k, fill=t["card"])
-    # no buttons: tap the time to start or pause, the pills to open the app (Reset shows only when paused)
-    px = w * S - 22 * k - 64 * k
-    rows_spread(d, t, 24 * k, px - 10 * k, 22 * k, 22 * k + 150 * k + 9 * 6.2 * k, 72 * k, 11 * k, 8 * k)
-    pills(d, t, px, 22 * k, 64 * k, 15 * k, 6.2 * k, 3 * k)
-    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_4.png")
-    # 2×1
-    w, h = 510, 240; k = min(h / 120, w / 255) * S
-    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=36 * k, fill=t["card"])
-    top = (h * S - 86 * k) / 2
-    rows3(d, t, 22 * k, top, 28 * k, 2 * k, 10 * k, 6 * k)
-    bw, bh = 72 * k, min(80 * k, h * S - 32 * k)
-    bx = w * S - 20 * k - bw
-    pills(d, t, bx - 13 * k - 50 * k, top, 50 * k, 6 * k, 3 * k, 2 * k)
-    by = (h * S - bh) / 2
-    d.rounded_rectangle([bx, by, bx + bw, by + bh], radius=24 * k, fill=t["btn"])
-    play(d, bx + bw / 2, by + bh / 2 - 8 * k, 10 * k, t["btnfg"])
-    d.text((bx + bw / 2, by + bh / 2 + 10 * k), "START", font=mono(10 * k, True), fill=t["btnfg"], anchor="mt")
-    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_2.png")
-    # 1×1
-    w = h = 240; u = w / 120 * S; c = w * S / 2
-    im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    d.ellipse([0, 0, w * S - 1, h * S - 1], fill=t["card"])
-    R, st = 51 * u, 8 * u
-    span = (30 - 4) / 3
-    for kk in range(30):
-        p, j = divmod(kk, 3)
-        a0 = p * 36 + 3 + j * (span + 2)
-        d.arc([c - R, c - R, c + R, c + R], a0 - 90, a0 - 90 + span, fill=t["fg"], width=int(st))
-    f, uf = doto(24 * u), mono(9 * u)
-    dw = d.textlength("00", font=f); uw = d.textlength("MIN", font=uf)
-    x0 = c - (dw + 4 * u + uw) / 2
-    y0 = c - (22 * u * 2 + 3 * u + 13 * u) / 2
-    for i, (v, un, col) in enumerate([("25", "MIN", t["fg"]), ("00", "SEC", t["dim"])]):
-        base = y0 + 22 * u * (i + 1) + 3 * u * i - 2 * u
-        d.text((x0, base), v, font=f, fill=col, anchor="ls")
-        d.text((x0 + dw + 4 * u, base - u), un, font=uf, fill=t["sub"], anchor="ls")
-    play(d, c, y0 + 22 * u * 2 + 3 * u + 8 * u, 5 * u, t["sub"])
-    im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_1.png")
+    # 2x2
+    W = 510 * S // 2; k = W / 170
+    im = Image.new("RGBA", (W, W), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    pad(im, d, W, W, 22 * k, t, k); d = ImageDraw.Draw(im)
+    s = 24; wire(d, "25:00", 20 * k, 46 * k, min(s, s * 104.4 / width("25:00", s)) * k, 18 * k, 2.6 * k, t)
+    tw = width("25:00", min(s, s * 104.4 / width("25:00", s)))
+    x1 = (20 + tw + 5) * k; d.line([(x1, 46 * k), (x1 + 18 * .866 * k, (46 - 9) * k)], fill=t["acc"], width=max(1, round(.8 * k)))
+    f = mono(8 * k)
+    d.text((20 * k, 124 * k), "LEFT", font=f, fill=t["ink"], anchor="ls"); d.text((150 * k, 124 * k), "25:00", font=f, fill=t["ink"], anchor="rs")
+    d.line([(20 * k, 128 * k), (150 * k, 128 * k)], fill=t["ink"], width=max(1, round(.5 * k)))
+    d.text((20 * k, 140 * k), "SET", font=f, fill=t["sub"], anchor="ls"); d.text((150 * k, 140 * k), "25:00", font=f, fill=t["sub"], anchor="rs")
+    d.line([(20 * k, 144 * k), (150 * k, 144 * k)], fill=t["ink"], width=max(1, round(.5 * k)))
+    d.text((20 * k, 160 * k), "Z = TIME LEFT", font=mono(7 * k), fill=t["sub"], anchor="ls")
+    im.resize((510, 510), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_4.png")
+    # 2x1
+    W, H = 510 * S // 2, 240 * S // 2; k = W / 170
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    pad(im, d, W, H, 18 * k, t, k); d = ImageDraw.Draw(im)
+    s = min(18, 18 * (110 - 14 - 12 * .866) / width("25:00", 18))
+    wire(d, "25:00", 14 * k, 20 * k, s * k, 12 * k, 2.2 * k, t)
+    d.text((156 * k, 34 * k), "SET", font=mono(7 * k), fill=t["sub"], anchor="rs"); d.text((156 * k, 48 * k), "25:00", font=mono(8 * k), fill=t["sub"], anchor="rs")
+    im.resize((510, 240), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_2.png")
+    # 1x1
+    W = 240 * S // 2; k = W / 80
+    im = Image.new("RGBA", (W, W), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    pad(im, d, W, W, W / 2, t, k, True); d = ImageDraw.Draw(im)
+    s, dep = 12, 12; x = 40 - (width("25", s) + dep * .866) / 2
+    wire(d, "25", x * k, (22 + dep * .25) * k, s * k, dep * k, 2.4 * k, t)
+    d.text((40 * k, 70 * k), "MIN", font=mono(6.5 * k), fill=t["sub"], anchor="ms")
+    im.resize((240, 240), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_1.png")
 
 
 make("dark", "")
