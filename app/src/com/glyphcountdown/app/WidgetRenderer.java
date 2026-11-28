@@ -9,7 +9,9 @@ import android.graphics.RectF;
 
 /**
  * Draws a widget as one bitmap (home screen widgets cannot host custom views).
- * Button positions match the transparent tap areas in res/layout/widget_*.xml.
+ * Button positions match the transparent tap areas in res/layout/widget_*.xml. The 2×2 has no
+ * buttons: tapping the time starts or pauses, tapping the pills opens the app, and a small Reset
+ * chip shows only while paused or after time's up.
  *
  * The time is three rows of dot-matrix digits (HR / MIN / SEC; two rows on the 1×1). Progress is
  * 10 pills, each 1/10 of the time that was set, split into thirds of 1/30: lit thirds =
@@ -85,11 +87,25 @@ final class WidgetRenderer {
         return (int) Math.min(30, Math.ceil(st.remainingNow() * 30.0 / st.totalMs));
     }
 
-    static Bitmap render(Context c, int kind, int w, int h, TimerState st, boolean dark, boolean translucent) {
+    /** Whether the 2×2 shows its Reset chip (and so its tap area): only while paused or ringing. */
+    static boolean showsReset(TimerState st) {
+        return st.mode == TimerState.PAUSE || st.mode == TimerState.DONE;
+    }
+
+    /**
+     * Draws one widget. wallpaper: lit and empty thirds take the wallpaper's accent (Material You
+     * system colours) while setting or running; paused stays grey and time's up stays red.
+     */
+    static Bitmap render(Context c, int kind, int w, int h, TimerState st, boolean dark, boolean translucent,
+                         boolean wallpaper) {
         Theme t = dark ? DARK : LIGHT;
         Bitmap bm = Bitmap.createBitmap(Math.max(w, 1), Math.max(h, 1), Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
         Look l = look(st, t);
+        if (wallpaper && (st.mode == TimerState.SET || st.mode == TimerState.RUN)) {
+            l.on = c.getColor(dark ? android.R.color.system_accent1_200 : android.R.color.system_accent1_600);
+            l.off = c.getColor(dark ? android.R.color.system_accent1_800 : android.R.color.system_accent1_100);
+        }
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(translucent ? t.cardTranslucent : t.card);
 
@@ -104,18 +120,25 @@ final class WidgetRenderer {
         if (kind == K4) {
             float k = Math.min(w, h) / 255f;
             cv.drawRoundRect(new RectF(0, 0, w, h), 48 * k, 48 * k, p);
-            rows3(cv, l, doto, mono, 26 * k, 24 * k, 50 * k, 4 * k, 12 * k, 10 * k);
-            pills(cv, l, w - 26 * k - 72 * k, 24 * k, 72 * k, 11 * k, 4 * k, 2 * k);
-            // button row: reset, then the labelled start/pause button filling the rest
-            float by = h - 66 * k, bh = 46 * k; // 74 %–92 % of a square widget, matching widget_2x2.xml
-            Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
-            ring.setStyle(Paint.Style.STROKE);
-            ring.setStrokeWidth(2 * k);
-            ring.setColor(t.line);
-            cv.drawCircle(22 * k + bh / 2, by + bh / 2, bh / 2 - k, ring);
-            resetIcon(cv, 22 * k + bh / 2, by + bh / 2, 7 * k, t.fg, k);
-            float bx = 22 * k + bh + 10 * k;
-            labelButton(cv, l, bold, new RectF(bx, by, w - 22 * k, by + bh), bh / 2, 13 * k, 16 * k, k, false);
+            // no buttons: the time fills the card (tap it to start or pause), pills on the right
+            rows3(cv, l, doto, mono, 24 * k, 22 * k, 58 * k, 6 * k, 11 * k, 8 * k);
+            pills(cv, l, w - 22 * k - 64 * k, 22 * k, 64 * k, 15 * k, 6.2f * k, 3 * k);
+            if (showsReset(st)) {
+                // small Reset chip bottom-left, matching w_reset in widget_2x2.xml (x 0–49 %, y 80–100 %)
+                RectF r = new RectF(20 * k, 206 * k, 112 * k, 234 * k);
+                Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+                ring.setStyle(Paint.Style.STROKE);
+                ring.setStrokeWidth(1.5f * k);
+                ring.setColor(withAlpha(l.done ? t.red : t.line, l.alpha));
+                cv.drawRoundRect(r, r.height() / 2, r.height() / 2, ring);
+                int fg = withAlpha(l.done ? t.red : t.fg, l.alpha);
+                resetIcon(cv, r.left + 15 * k, r.centerY(), 5.5f * k, fg, k);
+                bold.setTextSize(10 * k);
+                bold.setLetterSpacing(0.2f);
+                bold.setColor(fg);
+                Paint.FontMetrics fm = bold.getFontMetrics();
+                cv.drawText("RESET", r.left + 27 * k, r.centerY() - (fm.ascent + fm.descent) / 2, bold);
+            }
         } else if (kind == K2) {
             float k = Math.min(h / 120f, w / 255f);
             cv.drawRoundRect(new RectF(0, 0, w, h), 36 * k, 36 * k, p);

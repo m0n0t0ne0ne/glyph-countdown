@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.RemoteViews;
 
 /** Redraws every placed widget from the current timer state. */
@@ -41,6 +42,7 @@ final class WidgetUpdater {
 
             TimerState st = TimerState.get();
             boolean translucent = Prefs.get(c, Prefs.TRANSLUCENT);
+            boolean wallpaper = Prefs.get(c, Prefs.WALLPAPER_COLOURS);
             // Both appearances are sent; the layout and layout-night variants each show one, so the
             // widget follows Settings › Display › Appearance even when this app isn't running.
             // Theme chosen in Settings: Light or Dark fills both slots with that theme, so the
@@ -48,10 +50,10 @@ final class WidgetUpdater {
             String theme = Palette.choice(c);
             Bitmap light, dark;
             if (Palette.PHONE.equals(theme)) {
-                light = WidgetRenderer.render(c, kind, w, h, st, false, translucent);
-                dark = WidgetRenderer.render(c, kind, w, h, st, true, translucent);
+                light = WidgetRenderer.render(c, kind, w, h, st, false, translucent, wallpaper);
+                dark = WidgetRenderer.render(c, kind, w, h, st, true, translucent, wallpaper);
             } else {
-                light = dark = WidgetRenderer.render(c, kind, w, h, st, Palette.DARK.equals(theme), translucent);
+                light = dark = WidgetRenderer.render(c, kind, w, h, st, Palette.DARK.equals(theme), translucent, wallpaper);
             }
             String pkg = c.getPackageName();
             int layout = res(c, "layout", kind == WidgetRenderer.K1 ? "widget_1x1"
@@ -79,10 +81,11 @@ final class WidgetUpdater {
                         new Intent(c, TimerService.class).setAction(TimerService.ACTION_RESET)
                                 .putExtra(TimerService.EXTRA_FG, true),
                         PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-                rv.setOnClickPendingIntent(res(c, "id", "w_reset"), reset);
-                for (String n : new String[]{"w_open", "w_open2", "w_open3", "w_open4"}) {
-                    rv.setOnClickPendingIntent(res(c, "id", n), open);
-                }
+                int resetId = res(c, "id", "w_reset");
+                rv.setOnClickPendingIntent(resetId, reset);
+                // the Reset chip and its tap area exist only while paused or ringing
+                rv.setViewVisibility(resetId, WidgetRenderer.showsReset(st) ? View.VISIBLE : View.GONE);
+                rv.setOnClickPendingIntent(res(c, "id", "w_open"), open);
             }
             m.updateAppWidget(id, rv);
         }

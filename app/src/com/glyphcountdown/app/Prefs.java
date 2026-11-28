@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 /** On/off settings from the Settings screen. */
 final class Prefs {
-    static final String TRANSLUCENT = "widget_translucent",
+    static final String TRANSLUCENT = "widget_translucent", WALLPAPER_COLOURS = "widget_wallpaper_colours",
             VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync",
             DIM = "anim_dim", PICKUP_DISMISS = "pickup_dismiss";
     private static final String ANIM = "times_up_animation";
@@ -17,7 +17,8 @@ final class Prefs {
     }
 
     static boolean get(Context c, String key) {
-        return p(c).getBoolean(key, !TRANSLUCENT.equals(key)); // everything but translucency defaults on
+        // everything defaults on except the two widget looks, which keep the plain style until chosen
+        return p(c).getBoolean(key, !TRANSLUCENT.equals(key) && !WALLPAPER_COLOURS.equals(key));
     }
 
     static void set(Context c, String key, boolean on) {

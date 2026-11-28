@@ -60,21 +60,9 @@ def make(theme, suffix):
     w = h = 510; k = w / 255 * S
     im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
     d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=48 * k, fill=t["card"])
-    rows3(d, t, 26 * k, 24 * k, 50 * k, 4 * k, 12 * k, 10 * k)
-    pills(d, t, w * S - 26 * k - 72 * k, 24 * k, 72 * k, 11 * k, 4 * k, 2 * k)
-    by, bh = h * S - 66 * k, 46 * k
-    cx = 22 * k + bh / 2
-    d.ellipse([22 * k + k, by + k, 22 * k + bh - k, by + bh - k], outline=t["line"], width=int(2 * k))
-    r = 7 * k
-    d.arc([cx - r, by + bh / 2 - r, cx + r, by + bh / 2 + r], 200, 130, fill=t["fg"], width=int(2 * k))
-    bx = 22 * k + bh + 10 * k
-    d.rounded_rectangle([bx, by, w * S - 22 * k, by + bh], radius=bh / 2, fill=t["btn"])
-    f = mono(13 * k, True)
-    tw = d.textlength("START", font=f) + 13 * k * 0.12 * 4
-    total = 16 * k + 8 * k + tw
-    ix = (bx + w * S - 22 * k) / 2 - total / 2 + 8 * k
-    play(d, ix, by + bh / 2, 8 * k, t["btnfg"])
-    d.text((ix + 8 * k + 8 * k, by + bh / 2), "START", font=f, fill=t["btnfg"], anchor="lm")
+    # no buttons: tap the time to start or pause, the pills to open the app (Reset shows only when paused)
+    rows3(d, t, 24 * k, 22 * k, 58 * k, 6 * k, 11 * k, 8 * k)
+    pills(d, t, w * S - 22 * k - 64 * k, 22 * k, 64 * k, 15 * k, 6.2 * k, 3 * k)
     im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_4.png")
     # 2×1
     w, h = 510, 240; k = min(h / 120, w / 255) * S

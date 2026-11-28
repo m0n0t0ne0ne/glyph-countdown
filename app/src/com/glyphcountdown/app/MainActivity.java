@@ -10,7 +10,9 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -39,7 +41,7 @@ import android.widget.TextView;
 public class MainActivity extends Activity implements TimerState.Listener, DialView.Listener, SensorEventListener {
     // set from Palette in onCreate: BLACK is the background role, WHITE the foreground role
     private static int BLACK, WHITE, GREY, BORDER;
-    private int SUB, FAINT, CHIP, KEY, SHEET, OFF;
+    private int SUB, FAINT, CHIP, KEY, KEY_PRESS, OFF;
     private static final int RED = 0xFFE8202A;
     private boolean appliedDark;
 
@@ -54,7 +56,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
     private final TextView[] segDigits = new TextView[3];
     private final TextView[] segUnits = new TextView[3];
     private final LinearLayout[] segs = new LinearLayout[3];
-    private TextView setKey;
+    private TextView setKey, key0, key00;
     private ResetButton reset;
     private int bottomInset;
 
@@ -85,7 +87,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         FAINT = pal.dark ? 0xFF666D72 : 0xFF868C91;
         CHIP = pal.dark ? 0xFF0B0D0E : 0xFFFFFFFF;
         KEY = pal.dark ? 0xFF1E2225 : 0xFFFFFFFF;
-        SHEET = pal.dark ? 0xFF121517 : 0xFFE6E8EA;
+        KEY_PRESS = pal.dark ? 0xFF2C3236 : 0xFFD3D7DA;
         OFF = pal.dark ? 0xFF4A5055 : 0xFFB8BDC1;
         Palette.applyBars(this, pal);
         dp = getResources().getDisplayMetrics().density;
@@ -235,13 +237,9 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         // the keypad: slides up while typing; the big chip above is the readout
         keypad = new LinearLayout(this);
         keypad.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable sheet = new GradientDrawable();
-        float r = px(28);
-        sheet.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
-        sheet.setColor(SHEET);
-        sheet.setStroke(px(1), BORDER);
-        keypad.setBackground(sheet);
-        keypad.setClickable(true); // taps on the sheet's gaps don't fall through
+        // plain keys on the page background: no sheet, no border, no key fills
+        keypad.setBackgroundColor(BLACK);
+        keypad.setClickable(true); // taps between keys don't fall through
         String[][] keys = {{"1", "2", "3"}, {"4", "5", "6"}, {"7", "8", "9"}, {"00", "0", "DEL"}};
         for (int row = 0; row < 4; row++) {
             LinearLayout line = new LinearLayout(this);
@@ -253,22 +251,25 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
                     del.setContentDescription("Delete");
                     key = del;
                 } else {
-                    TextView t = text(k, 24, WHITE, Fonts.monoBold(this));
+                    TextView t = text(k, 36, WHITE, Fonts.doto(this));
                     t.setGravity(Gravity.CENTER);
+                    if ("0".equals(k)) key0 = t;
+                    if ("00".equals(k)) key00 = t;
                     key = t;
                 }
-                key.setBackground(rounded(KEY, px(18)));
+                // pressing shows a soft circle that fades out
+                RippleDrawable press = new RippleDrawable(ColorStateList.valueOf(KEY_PRESS), null, null);
+                press.setRadius(px(32));
+                key.setBackground(press);
                 key.setClickable(true);
                 key.setFocusable(true);
                 key.setOnClickListener(new View.OnClickListener() {
                     @Override public void onClick(View v) { onKey(k); }
                 });
-                LinearLayout.LayoutParams kl = new LinearLayout.LayoutParams(0, px(52), 1);
-                if (cI > 0) kl.leftMargin = px(6);
+                LinearLayout.LayoutParams kl = new LinearLayout.LayoutParams(0, px(64), 1);
                 line.addView(key, kl);
             }
             LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(-1, -2);
-            if (row > 0) ll.topMargin = px(6);
             keypad.addView(line, ll);
         }
         setKey = text("CANCEL", 15, BLACK, Fonts.monoBold(this));
@@ -278,7 +279,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
             @Override public void onClick(View v) { onSet(); }
         });
         LinearLayout.LayoutParams skl = new LinearLayout.LayoutParams(-1, px(52));
-        skl.topMargin = px(8);
+        skl.topMargin = px(12);
         keypad.addView(setKey, skl);
         keypad.setVisibility(View.GONE);
         root.addView(keypad, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
@@ -453,7 +454,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         chipRow.setVisibility(typing ? View.GONE : View.VISIBLE);
         controls.setVisibility(typing ? View.INVISIBLE : View.VISIBLE);
         hint.setVisibility(typing ? View.INVISIBLE : View.VISIBLE);
-        status.setVisibility(typing ? View.GONE : View.VISIBLE);
+        status.setVisibility(typing ? View.INVISIBLE : View.VISIBLE); // keeps its 32 dp gap under the dial
         bigChip.setBackground(rounded(Color.TRANSPARENT, px(32), typing ? WHITE : BORDER, typing ? 1.5f : 1f));
         dial.setTyping(typing, typing && !typed.isEmpty() && typedSeconds() <= 86399 ? typedSeconds() : st.setSeconds());
 
@@ -478,6 +479,9 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
             interp.setText(line);
             interp.setTextColor(tooBig ? RED : typed.isEmpty() ? SUB : WHITE);
             boolean canSet = !tooBig;
+            int zeroKeys = typed.isEmpty() ? OFF : WHITE; // a leading zero does nothing
+            key0.setTextColor(zeroKeys);
+            key00.setTextColor(zeroKeys);
             setKey.setText(typed.isEmpty() ? "CANCEL" : "SET " + h + ":" + two(m) + ":" + two(s));
             setKey.setBackground(pill(canSet ? WHITE : KEY, 0));
             setKey.setTextColor(canSet ? BLACK : OFF);
@@ -555,6 +559,7 @@ public class MainActivity extends Activity implements TimerState.Listener, DialV
         st.addListener(this);
         if (gravity != null) sensors.registerListener(this, gravity, SensorManager.SENSOR_DELAY_UI);
         refresh();
+        WidgetUpdater.updateAll(this); // picks up a new wallpaper colour for the widgets
     }
 
     @Override

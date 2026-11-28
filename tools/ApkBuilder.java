@@ -61,7 +61,7 @@ public class ApkBuilder {
         }
         String[][] widgets = {{"1", "1x1", "Time left inside a ring of thirds. Tap to start or pause."},
                 {"2", "2x1", "Hours, minutes and seconds with a start/pause button."},
-                {"4", "2x2", "Hours, minutes, seconds and pills in thirds, with reset and start/pause."}};
+                {"4", "2x2", "Hours, minutes, seconds and pills in thirds. Tap the time to start or pause."}};
         for (String[] wd : widgets) {
             for (String v : new String[]{"widget_prev_", "widget_prev_light_"}) {
                 pkg.getOrCreate("-nodpi", "drawable", v + wd[0])

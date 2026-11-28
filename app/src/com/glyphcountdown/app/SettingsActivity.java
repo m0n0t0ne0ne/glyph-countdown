@@ -158,6 +158,8 @@ public class SettingsActivity extends Activity {
                 "Dark while the screen is on. In a pocket, a bag or face-up on a table it's always dark, by itself."), rowLp());
 
         section(col, "WIDGETS");
+        col.addView(toggle(Prefs.WALLPAPER_COLOURS, "Wallpaper colours",
+                "Pills and ring use your wallpaper's accent colour. Off: white, like the matrix."), rowLp());
         col.addView(toggle(Prefs.TRANSLUCENT, "Translucent background",
                 "See-through widgets, like Nothing OS 5.0’s translucent style."), rowLp());
 
@@ -232,7 +234,7 @@ public class SettingsActivity extends Activity {
                 sw.invalidate();
                 Prefs.set(SettingsActivity.this, key, sw.on);
                 row.setContentDescription(label + ", " + (sw.on ? "on" : "off"));
-                if (Prefs.TRANSLUCENT.equals(key)) WidgetUpdater.updateAll(SettingsActivity.this);
+                if (Prefs.TRANSLUCENT.equals(key) || Prefs.WALLPAPER_COLOURS.equals(key)) WidgetUpdater.updateAll(SettingsActivity.this);
             }
         });
         return row;
