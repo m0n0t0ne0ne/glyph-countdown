@@ -39,6 +39,27 @@ def rows3(d, t, x, y, size, gap, usize, ugap):
         d.text((x + dw + ugap, base - size * 0.06), units[i], font=uf, fill=ucols[i], anchor="ls")
 
 
+def rows_spread(d, t, x, right, top, bottom, size, usize, ugap):
+    """HR / MIN / SEC spread so the first digits' top sits on top and the last's bottom on bottom."""
+    vals, units = ["00", "25", "00"], ["HR", "MIN", "SEC"]
+    cols = [t["faint"], t["fg"], t["dim"]]
+    ucols = [t["faint"], t["sub"], t["sub"]]
+    uf = mono(usize)
+    f = doto(size)
+    need = d.textlength("00", font=f) + ugap + d.textlength("MIN", font=uf)
+    if need > right - x:
+        size *= (right - x) / need
+        f = doto(size)
+    l, tp, r, b = d.textbbox((0, 0), "00", font=f, anchor="ls")
+    gh = b - tp
+    gap = (bottom - top - 3 * gh) / 2
+    dw = d.textlength("00", font=f)
+    for i in range(3):
+        base = top + i * (gh + gap) - tp
+        d.text((x, base), vals[i], font=f, fill=cols[i], anchor="ls")
+        d.text((x + dw + ugap, base - usize * 0.1), units[i], font=uf, fill=ucols[i], anchor="ls")
+
+
 def pills(d, t, x, y, w, ph, gap, tgap):
     tw = (w - 2 * tgap) / 3
     for p in range(10):
@@ -61,8 +82,9 @@ def make(theme, suffix):
     im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
     d.rounded_rectangle([0, 0, w * S - 1, h * S - 1], radius=48 * k, fill=t["card"])
     # no buttons: tap the time to start or pause, the pills to open the app (Reset shows only when paused)
-    rows3(d, t, 24 * k, 22 * k, 58 * k, 6 * k, 11 * k, 8 * k)
-    pills(d, t, w * S - 22 * k - 64 * k, 22 * k, 64 * k, 15 * k, 6.2 * k, 3 * k)
+    px = w * S - 22 * k - 64 * k
+    rows_spread(d, t, 24 * k, px - 10 * k, 22 * k, 22 * k + 150 * k + 9 * 6.2 * k, 72 * k, 11 * k, 8 * k)
+    pills(d, t, px, 22 * k, 64 * k, 15 * k, 6.2 * k, 3 * k)
     im.resize((w, h), Image.LANCZOS).save(f"app/res/drawable-nodpi/widget_prev{suffix}_4.png")
     # 2×1
     w, h = 510, 240; k = min(h / 120, w / 255) * S

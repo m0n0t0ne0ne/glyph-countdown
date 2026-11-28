@@ -9,12 +9,13 @@ Parallax (formerly Glyph Countdown) is an Android countdown timer for the Nothin
 - **Repository:** `m0n0t0ne0ne/glyph-countdown`, default branch `main`. Use this repo, not the old `miesesk` one.
 - **Website:** https://m0n0t0ne0ne.github.io/glyph-countdown/, served by GitHub Pages from `/docs` on `main`.
 - **Releases:** https://github.com/m0n0t0ne0ne/glyph-countdown/releases/latest. The APK is named `Parallax-<version>.apk` (`GlyphCountdown-…` up to 1.5.2).
-- **Current release:** **2.1** (versionCode 21): button-free 2×2 widget (tap the time to start/pause, Reset only while paused), wallpaper colours for widgets, plain Doto keypad.
+- **Current release:** **2.2** (versionCode 22): Widget colour picker (swatches from the wallpaper's own colours, separate from Nothing's dynamic theme), larger 2×2 digits spread to the pills' height, no Reset on the 2×2.
 - **Stack:** plain Java, with no Gradle and no Android Studio. `setup-deps.sh` downloads pinned build tools into `deps/`, and `build.sh` builds `out/Parallax.apk`. Nothing's Glyph Matrix SDK is downloaded at build time and is never committed, because its licence forbids redistributing it.
 - **Signing certificate SHA-256:** `a22a650d43425496555e814f387403d5d5b95fe1cd9e70519c030388654439e7`. The real key lives only in the repo's GitHub secrets. Never create or commit a `release.jks`.
 
 | Version | Change |
 | --- | --- |
+| 2.2 | Widget colour picker from the wallpaper; larger, spread 2×2 digits; no Reset chip |
 | 2.1 | Button-free 2×2 widget, wallpaper colours for widgets, plain Doto keypad, gap under the face while typing |
 | 2.0.1 | Timer screen text fits on a real phone |
 | 2.0 | Renamed Parallax; face-as-dial timer screen, typed times, new widgets and icon |
@@ -122,7 +123,7 @@ All app code is in `app/src/com/glyphcountdown/app/`. These are the files most c
 | `MatrixRenderer.java` | 25 × 25 and 13 × 13 frames. No Android code, so it runs on a desktop JVM |
 | `MorphEngine.java`, `SoundSync.java` | Time's-up animations and stutter sync to the alarm sound |
 | `TimesUpActivity.java`, `Prefs.java` | Time's up page and saved switches (all on by default except translucent widgets) |
-| `Widget*.java`, `WidgetRenderer.java` | Home-screen widgets (2.0): three rows of dot digits and 10 pills split into thirds; the 1×1 has a ring of thirds. The 2×2 has no buttons (2.1): tap the time to toggle, the pills to open the app; `w_reset` is shown only while paused or ringing. Widgets can only receive taps: a swipe test on the Phone (3) showed sideways swipes go to the launcher and up/down swipes never reach the app. Previews come from `tools/make_previews.py`, the icon from `tools/make_icon.py` |
+| `Widget*.java`, `WidgetRenderer.java` | Home-screen widgets (2.0): three rows of dot digits and 10 pills split into thirds; the 1×1 has a ring of thirds. The 2×2 has no buttons (2.1) and no Reset (2.2): tap the time to toggle, the pills to open the app. `WidgetColours` reads `WallpaperColors` and tunes the picked colour per card; `WidgetColourActivity` is the picker. Widgets can only receive taps: a swipe test on the Phone (3) showed sideways swipes go to the launcher and up/down swipes never reach the app. Previews come from `tools/make_previews.py`, the icon from `tools/make_icon.py` |
 | `.github/workflows/release.yml` | Auto-release on a version change, gated by the `release` environment |
 | `docs/` | Website (`index.html`, `assets/`), design images, release notes |
 

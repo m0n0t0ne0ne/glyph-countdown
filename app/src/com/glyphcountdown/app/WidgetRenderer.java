@@ -10,8 +10,9 @@ import android.graphics.RectF;
 /**
  * Draws a widget as one bitmap (home screen widgets cannot host custom views).
  * Button positions match the transparent tap areas in res/layout/widget_*.xml. The 2×2 has no
- * buttons: tapping the time starts or pauses, tapping the pills opens the app, and a small Reset
- * chip shows only while paused or after time's up.
+ * buttons: tapping the time starts or pauses and tapping the pills opens the app. Its three rows
+ * are spread so the top of the hours lines up with the top pill and the bottom of the seconds
+ * with the bottom pill (2.2, "design C").
  *
  * The time is three rows of dot-matrix digits (HR / MIN / SEC; two rows on the 1×1). Progress is
  * 10 pills, each 1/10 of the time that was set, split into thirds of 1/30: lit thirds =
@@ -87,24 +88,20 @@ final class WidgetRenderer {
         return (int) Math.min(30, Math.ceil(st.remainingNow() * 30.0 / st.totalMs));
     }
 
-    /** Whether the 2×2 shows its Reset chip (and so its tap area): only while paused or ringing. */
-    static boolean showsReset(TimerState st) {
-        return st.mode == TimerState.PAUSE || st.mode == TimerState.DONE;
-    }
-
     /**
-     * Draws one widget. wallpaper: lit and empty thirds take the wallpaper's accent (Material You
-     * system colours) while setting or running; paused stays grey and time's up stays red.
+     * Draws one widget. colour: the colour picked in Settings › Widget colour (0 = white). While
+     * setting or running, lit and empty thirds take it, tuned to stay readable on this card;
+     * paused stays grey and time's up stays red.
      */
     static Bitmap render(Context c, int kind, int w, int h, TimerState st, boolean dark, boolean translucent,
-                         boolean wallpaper) {
+                         int colour) {
         Theme t = dark ? DARK : LIGHT;
         Bitmap bm = Bitmap.createBitmap(Math.max(w, 1), Math.max(h, 1), Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bm);
         Look l = look(st, t);
-        if (wallpaper && (st.mode == TimerState.SET || st.mode == TimerState.RUN)) {
-            l.on = c.getColor(dark ? android.R.color.system_accent1_200 : android.R.color.system_accent1_600);
-            l.off = c.getColor(dark ? android.R.color.system_accent1_800 : android.R.color.system_accent1_100);
+        if (colour != 0 && (st.mode == TimerState.SET || st.mode == TimerState.RUN)) {
+            l.on = WidgetColours.lit(colour, dark);
+            l.off = WidgetColours.empty(colour, dark);
         }
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(translucent ? t.cardTranslucent : t.card);
@@ -121,24 +118,9 @@ final class WidgetRenderer {
             float k = Math.min(w, h) / 255f;
             cv.drawRoundRect(new RectF(0, 0, w, h), 48 * k, 48 * k, p);
             // no buttons: the time fills the card (tap it to start or pause), pills on the right
-            rows3(cv, l, doto, mono, 24 * k, 22 * k, 58 * k, 6 * k, 11 * k, 8 * k);
-            pills(cv, l, w - 22 * k - 64 * k, 22 * k, 64 * k, 15 * k, 6.2f * k, 3 * k);
-            if (showsReset(st)) {
-                // small Reset chip bottom-left, matching w_reset in widget_2x2.xml (x 0–49 %, y 80–100 %)
-                RectF r = new RectF(20 * k, 206 * k, 112 * k, 234 * k);
-                Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
-                ring.setStyle(Paint.Style.STROKE);
-                ring.setStrokeWidth(1.5f * k);
-                ring.setColor(withAlpha(l.done ? t.red : t.line, l.alpha));
-                cv.drawRoundRect(r, r.height() / 2, r.height() / 2, ring);
-                int fg = withAlpha(l.done ? t.red : t.fg, l.alpha);
-                resetIcon(cv, r.left + 15 * k, r.centerY(), 5.5f * k, fg, k);
-                bold.setTextSize(10 * k);
-                bold.setLetterSpacing(0.2f);
-                bold.setColor(fg);
-                Paint.FontMetrics fm = bold.getFontMetrics();
-                cv.drawText("RESET", r.left + 27 * k, r.centerY() - (fm.ascent + fm.descent) / 2, bold);
-            }
+            float pillsX = w - 22 * k - 64 * k, top = 22 * k, bottom = top + 10 * 15 * k + 9 * 6.2f * k;
+            rowsSpread(cv, l, doto, mono, 24 * k, pillsX - 10 * k, top, bottom, 72 * k, 11 * k, 8 * k);
+            pills(cv, l, pillsX, top, 64 * k, 15 * k, 6.2f * k, 3 * k);
         } else if (kind == K2) {
             float k = Math.min(h / 120f, w / 255f);
             cv.drawRoundRect(new RectF(0, 0, w, h), 36 * k, 36 * k, p);
@@ -193,6 +175,35 @@ final class WidgetRenderer {
             cv.drawText(v[i], x, base, doto);
             mono.setColor(withAlpha(ucol[i], l.alpha));
             cv.drawText(un[i], x + dw + unitGap, base - size * 0.06f, mono);
+        }
+    }
+
+    /**
+     * HR / MIN / SEC spread between top and bottom: the top of the first row's digits sits on top,
+     * the bottom of the last row's on bottom, with even gaps. The size shrinks if the digits and
+     * their labels would not fit before right.
+     */
+    private static void rowsSpread(Canvas cv, Look l, Paint doto, Paint mono, float x, float right,
+                                   float top, float bottom, float size, float unitSize, float unitGap) {
+        mono.setTextSize(unitSize);
+        mono.setLetterSpacing(0.15f);
+        float uw = mono.measureText("MIN");
+        doto.setTextSize(size);
+        float need = doto.measureText("00") + unitGap + uw;
+        if (need > right - x) { size *= (right - x) / need; doto.setTextSize(size); }
+        android.graphics.Rect b = new android.graphics.Rect();
+        doto.getTextBounds("00", 0, 2, b);
+        float gh = b.height(), gap = Math.max(0, (bottom - top - 3 * gh) / 2), dw = doto.measureText("00");
+        String[] v = {two(l.h), two(l.m), two(l.s)};
+        String[] un = {"HR", "MIN", "SEC"};
+        int[] col = {l.hoursZero ? l.faint : l.main, l.main, l.dim};
+        int[] ucol = {l.hoursZero ? l.faint : l.unit, l.unit, l.unit};
+        for (int i = 0; i < 3; i++) {
+            float base = top + i * (gh + gap) - b.top;
+            doto.setColor(withAlpha(col[i], l.alpha));
+            cv.drawText(v[i], x, base, doto);
+            mono.setColor(withAlpha(ucol[i], l.alpha));
+            cv.drawText(un[i], x + dw + unitGap, base - unitSize * 0.1f, mono);
         }
     }
 

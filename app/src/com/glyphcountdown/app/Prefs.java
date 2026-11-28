@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 /** On/off settings from the Settings screen. */
 final class Prefs {
-    static final String TRANSLUCENT = "widget_translucent", WALLPAPER_COLOURS = "widget_wallpaper_colours",
+    static final String TRANSLUCENT = "widget_translucent",
             VIBRATE = "alarm_vibrate", SCREEN_OFF_ONLY = "matrix_screen_off_only", SYNC = "anim_sync",
             DIM = "anim_dim", PICKUP_DISMISS = "pickup_dismiss";
     private static final String ANIM = "times_up_animation";
@@ -17,8 +17,7 @@ final class Prefs {
     }
 
     static boolean get(Context c, String key) {
-        // everything defaults on except the two widget looks, which keep the plain style until chosen
-        return p(c).getBoolean(key, !TRANSLUCENT.equals(key) && !WALLPAPER_COLOURS.equals(key));
+        return p(c).getBoolean(key, !TRANSLUCENT.equals(key)); // everything but translucency defaults on
     }
 
     static void set(Context c, String key, boolean on) {
@@ -44,6 +43,15 @@ final class Prefs {
 
     static void setStyle(Context c, String name) {
         p(c).edit().putString("countdown_style", name).apply();
+    }
+
+    /** Colour for the widgets' pills and ring, picked from the wallpaper; 0 = white (default). */
+    static int widgetColour(Context c) {
+        return p(c).getInt("widget_colour", 0);
+    }
+
+    static void setWidgetColour(Context c, int colour) {
+        p(c).edit().putInt("widget_colour", colour).remove("widget_wallpaper_colours").apply();
     }
 
     /** How far "Dim with notes" dims, 0..100 (default 80). */

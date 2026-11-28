@@ -25,7 +25,8 @@ public class SettingsActivity extends Activity {
     private static final int RED = 0xFFE8202A;
 
     private float dp;
-    private TextView themeSub, timesUpValue, styleValue;
+    private TextView themeSub, timesUpValue, styleValue, colourValue;
+    private View colourDot, colourRow;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -158,8 +159,37 @@ public class SettingsActivity extends Activity {
                 "Dark while the screen is on. In a pocket, a bag or face-up on a table it's always dark, by itself."), rowLp());
 
         section(col, "WIDGETS");
-        col.addView(toggle(Prefs.WALLPAPER_COLOURS, "Wallpaper colours",
-                "Pills and ring use your wallpaper's accent colour. Off: white, like the matrix."), rowLp());
+        LinearLayout wc = card();
+        wc.setGravity(Gravity.CENTER_VERTICAL);
+        wc.setClickable(true);
+        wc.setFocusable(true);
+        wc.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                startActivity(new Intent(SettingsActivity.this, WidgetColourActivity.class));
+            }
+        });
+        LinearLayout wt = new LinearLayout(this);
+        wt.setOrientation(LinearLayout.VERTICAL);
+        wt.addView(text("Widget colour", 15, WHITE, Fonts.monoBold(this)));
+        TextView wsub = text("Pills and ring, picked from your wallpaper", 12, GREY, Fonts.mono(this));
+        wsub.setLineSpacing(0, 1.3f);
+        LinearLayout.LayoutParams wsl = new LinearLayout.LayoutParams(-1, -2);
+        wsl.topMargin = px(4);
+        wt.addView(wsub, wsl);
+        wc.addView(wt, new LinearLayout.LayoutParams(0, -2, 1));
+        colourDot = new View(this);
+        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(px(16), px(16));
+        dl.leftMargin = px(12);
+        wc.addView(colourDot, dl);
+        colourValue = text("", 12, WHITE, Fonts.monoBold(this));
+        colourValue.setLetterSpacing(0.12f);
+        LinearLayout.LayoutParams cvl2 = new LinearLayout.LayoutParams(-2, -2);
+        cvl2.leftMargin = px(8);
+        cvl2.rightMargin = px(10);
+        wc.addView(colourValue, cvl2);
+        wc.addView(text("›", 22, GREY, Fonts.mono(this)));
+        colourRow = wc;
+        col.addView(wc, rowLp());
         col.addView(toggle(Prefs.TRANSLUCENT, "Translucent background",
                 "See-through widgets, like Nothing OS 5.0’s translucent style."), rowLp());
 
@@ -177,6 +207,15 @@ public class SettingsActivity extends Activity {
                 : "For the app and widgets. Always " + (Palette.DARK.equals(ch) ? "dark" : "light")
                   + ", whatever your phone is set to.");
         timesUpValue.setText(TimesUpActivity.summary(this));
+        int wcol = Prefs.widgetColour(this);
+        String wname = WidgetColours.name(wcol);
+        colourValue.setText(wname.toUpperCase());
+        GradientDrawable dot = new GradientDrawable();
+        dot.setShape(GradientDrawable.OVAL);
+        dot.setColor(wcol == 0 ? WHITE : WidgetColours.lit(wcol, Palette.isDark(this)));
+        dot.setStroke(Math.max(1, px(1)), LINE);
+        colourDot.setBackground(dot);
+        colourRow.setContentDescription("Widget colour: " + wname + ". Change");
         styleValue.setText(Prefs.style(this));
         ((View) styleValue.getParent().getParent()).setContentDescription("Countdown style: " + Prefs.style(this));
     }
@@ -234,7 +273,7 @@ public class SettingsActivity extends Activity {
                 sw.invalidate();
                 Prefs.set(SettingsActivity.this, key, sw.on);
                 row.setContentDescription(label + ", " + (sw.on ? "on" : "off"));
-                if (Prefs.TRANSLUCENT.equals(key) || Prefs.WALLPAPER_COLOURS.equals(key)) WidgetUpdater.updateAll(SettingsActivity.this);
+                if (Prefs.TRANSLUCENT.equals(key)) WidgetUpdater.updateAll(SettingsActivity.this);
             }
         });
         return row;
